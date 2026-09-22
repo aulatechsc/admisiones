@@ -325,3 +325,116 @@ test('cada nivel con plantillas tiene una por defecto', () => {
     );
   });
 });
+
+// ───────────────────────────────────────────────────────────────────
+// Inclusión derivada de la trayectoria
+//
+// Inicial y Primaria no preguntan por inclusión: la respuesta está dentro
+// del campo "Trayectoria escolar actual", entre tres opciones cerradas.
+// ───────────────────────────────────────────────────────────────────
+
+test('sólo la opción de proyecto de inclusión cuenta como inclusión', () => {
+  assert.strictEqual(I.derivarInclusion(I.TRAYECTORIAS.CON_INCLUSION), true);
+});
+
+test('las otras dos opciones no son inclusión', () => {
+  assert.strictEqual(I.derivarInclusion(I.TRAYECTORIAS.TERAPIAS_EXTERNAS), false);
+  assert.strictEqual(I.derivarInclusion(I.TRAYECTORIAS.SIN_APOYOS), false);
+});
+
+test('la opción de terapias externas no da falso positivo', () => {
+  // Dice "no tiene proyecto de inclusión": contiene la misma frase que la
+  // opción afirmativa. Un match por substring marcaría inclusión y le
+  // mandaría la negativa de vacante a una familia que declaró lo contrario.
+  const t = I.TRAYECTORIAS.TERAPIAS_EXTERNAS;
+  assert.ok(t.toLowerCase().includes('proyecto de inclusión'));
+  assert.strictEqual(I.derivarInclusion(t), false);
+});
+
+test('derivarInclusion tolera tildes, mayúsculas y espacios', () => {
+  assert.strictEqual(
+    I.derivarInclusion('MI HIJO/A CUENTA CON UN PROYECTO DE INCLUSION Y EQUIPO DE APOYO (MAI/AP/AE).'),
+    true
+  );
+  assert.strictEqual(
+    I.derivarInclusion('  Mi hijo/a  realiza una  trayectoria escolar de nivel sin apoyos externos.  '),
+    false
+  );
+});
+
+test('un texto desconocido devuelve null, no false', () => {
+  // null es "no sé": el sitio lo muestra para que alguien decida. Asumir
+  // false escondería el caso.
+  assert.strictEqual(I.derivarInclusion('cualquier otra cosa'), null);
+  assert.strictEqual(I.derivarInclusion(''), null);
+  assert.strictEqual(I.derivarInclusion(null), null);
+});
+
+test('Inicial deriva inclusión desde la trayectoria al mapear', () => {
+  const headers = HEADERS_SITIO.Inicial;
+  const fila = headers.map(() => '');
+  fila[headers.indexOf('Nombre del/la postulante')] = 'Sofía Pérez';
+  fila[headers.indexOf('Trayectoria escolar actual')] = I.TRAYECTORIAS.CON_INCLUSION;
+
+  const { admision } = I.mapearFilaSitio('Inicial', headers, fila);
+  assert.strictEqual(admision.inclusion_solicitada, true);
+  assert.strictEqual(admision.trayectoria_texto, I.TRAYECTORIAS.CON_INCLUSION);
+});
+
+test('Primaria deriva inclusión desde la trayectoria al mapear', () => {
+  const headers = HEADERS_SITIO.Primaria;
+  const fila = headers.map(() => '');
+  fila[headers.indexOf('Nombre del/la postulante')] = 'Juan Cortés';
+  fila[headers.indexOf('Trayectoria escolar actual')] = I.TRAYECTORIAS.CON_INCLUSION;
+
+  const { admision } = I.mapearFilaSitio('Primaria', headers, fila);
+  assert.strictEqual(admision.inclusion_solicitada, true);
+});
+
+test('la trayectoria de terapias externas no marca inclusión al mapear', () => {
+  ['Inicial', 'Primaria'].forEach((nivel) => {
+    const headers = HEADERS_SITIO[nivel];
+    const fila = headers.map(() => '');
+    fila[headers.indexOf('Nombre del/la postulante')] = 'Alguien';
+    fila[headers.indexOf('Trayectoria escolar actual')] = I.TRAYECTORIAS.TERAPIAS_EXTERNAS;
+
+    const { admision } = I.mapearFilaSitio(nivel, headers, fila);
+    assert.strictEqual(admision.inclusion_solicitada, false, `${nivel} dio falso positivo`);
+  });
+});
+
+test('Secundaria usa su campo directo, no la derivación', () => {
+  const headers = HEADERS_SITIO.Secundaria;
+  const fila = headers.map(() => '');
+  fila[headers.indexOf('Nombre del/la estudiante')] = 'Martina Gómez';
+  fila[headers.indexOf('Solicita proyecto de inclusión')] = 'Sí';
+
+  const { admision } = I.mapearFilaSitio('Secundaria', headers, fila);
+  assert.strictEqual(admision.inclusion_solicitada, true);
+});
+
+test('una trayectoria desconocida deja el campo vacío para decidir a mano', () => {
+  const headers = HEADERS_SITIO.Inicial;
+  const fila = headers.map(() => '');
+  fila[headers.indexOf('Nombre del/la postulante')] = 'Sofía Pérez';
+  fila[headers.indexOf('Trayectoria escolar actual')] = 'Texto que nadie previó';
+
+  const { admision } = I.mapearFilaSitio('Inicial', headers, fila);
+  assert.strictEqual(admision.inclusion_solicitada, '');
+});
+
+test('la plantilla de inclusión de Primaria ahora se dispara sola', () => {
+  // Antes de derivar desde la trayectoria, inclusion_solicitada llegaba
+  // siempre vacío en Primaria y el circuito nunca se activaba.
+  const headers = HEADERS_SITIO.Primaria;
+  const fila = headers.map(() => '');
+  fila[headers.indexOf('Nombre del/la postulante')] = 'Juan Cortés';
+  fila[headers.indexOf('Grado solicitado')] = '3er grado';
+  fila[headers.indexOf('Año de vacante solicitada')] = '2027';
+  fila[headers.indexOf('Padre/Madre/Tutor 1')] = 'Carlos Cortés';
+  fila[headers.indexOf('Trayectoria escolar actual')] = I.TRAYECTORIAS.CON_INCLUSION;
+
+  const { admision } = I.mapearFilaSitio('Primaria', headers, fila);
+  const elegida = I.elegirPlantilla(I.PLANTILLAS_INICIALES, 'Primaria', admision);
+  assert.strictEqual(elegida.id, 'primaria-inclusion');
+});

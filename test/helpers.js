@@ -16,13 +16,25 @@ const path = require('node:path');
 
 const DIR = path.join(__dirname, '..', 'apps-script');
 
-/** Doble de SpreadsheetApp y demás globals de Apps Script, para los tests. */
+/**
+ * Doble de los globals de Apps Script que usan las funciones puras.
+ *
+ * Sólo lo que hace falta: nada que toque SpreadsheetApp, Gmail o Drive se
+ * testea acá, porque eso depende de la planilla real.
+ */
 function stubsAppsScript() {
   return {
     console,
     Utilities: {
       getUuid: () => 'uuid-de-prueba',
-      formatDate: (d) => d.toISOString()
+      formatDate: (d) => d.toISOString(),
+      // Apps Script devuelve base64 estándar; el charset se ignora porque
+      // node siempre trabaja en UTF-8.
+      base64Encode: (texto) => Buffer.from(String(texto), 'utf8').toString('base64'),
+      base64EncodeWebSafe: (texto) =>
+        Buffer.from(String(texto), 'utf8').toString('base64')
+          .replace(/\+/g, '-').replace(/\//g, '_'),
+      Charset: { UTF_8: 'UTF-8' }
     }
   };
 }

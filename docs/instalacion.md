@@ -20,7 +20,12 @@ contenido:
 | `apps-script/config.gs` | `config.gs` |
 | `apps-script/plantillas.gs` | `plantillas.gs` |
 | `apps-script/ingesta.gs` | `ingesta.gs` |
+| `apps-script/datos.gs` | `datos.gs` |
+| `apps-script/mailer.gs` | `mailer.gs` |
+| `apps-script/fichas.gs` | `fichas.gs` |
+| `apps-script/api.gs` | `api.gs` |
 | `apps-script/setup.gs` | `setup.gs` |
+| `web/index.html` | `index` (tipo HTML) |
 
 > **No pegar nada de `apps-script/legacy/`.** Esos archivos son la copia de
 > respaldo de los scripts que hoy corren dentro de las planillas de cada
@@ -76,35 +81,24 @@ En la solapa `Usuarios`, una fila por persona:
 
 `niveles` separados por coma. `rol` es `admin` o `editor`.
 
-## Qué NO hace todavía
+## Después del setup
 
-- El sitio web (login, listado, ficha, timeline). Es el paso siguiente.
-- Enviar mails. El motor de plantillas está y testeado, pero falta conectarlo
-  al envío y al registro del hilo de Gmail.
-- Migrar el histórico de las tres planillas de nivel.
+El sitio y el envío de mails necesitan unos pasos más — el alias `admision@`,
+el servicio avanzado de Gmail y el despliegue. Está todo en
+[`sitio.md`](sitio.md).
 
-## Un hueco a resolver: inclusión en Primaria
+## Inclusión en Inicial y Primaria
 
-El script de Primaria elige entre sus dos mails según la columna `Inclusión`:
-si está marcada manda el de "no hay vacante de inclusión", si no el estándar.
+Esos dos niveles no tienen una pregunta directa de inclusión: la respuesta
+viene dentro de "Trayectoria escolar actual". El sistema la deriva sola — ver
+la sección correspondiente en [`sitio.md`](sitio.md), que explica también por
+qué una de las opciones necesita cuidado especial.
 
-Pero **el formulario del sitio de Primaria no pregunta por inclusión.** Sólo lo
-pregunta el de Secundaria (`Solicita proyecto de inclusión`). Se puede verificar
-en `SHEETS_CONFIG` de `legacy/sitio-web.gs`: Primaria tiene `Bilingüe inglés`
-pero ningún campo de inclusión.
+Cuando el texto no coincide con ninguna opción conocida, el campo queda sin
+definir y el sitio avisa en la ficha para que alguien lo resuelva antes de
+mandar el mail.
 
-Consecuencia: toda solicitud de Primaria que entre por el sitio llega con
-`inclusion_solicitada` vacío y cae en la plantilla estándar. El circuito de
-inclusión nunca se dispara solo.
+## Lo que falta
 
-Hay dos caminos, y es una decisión del equipo:
-
-1. **Agregar la pregunta al formulario del sitio** para Primaria, como ya la
-   tiene Secundaria. Queda automático.
-2. **Dejarlo manual**: el sitio muestra la casilla en la ficha y Rocío la marca
-   cuando corresponde, antes de enviar.
-
-La opción 2 probablemente sea la correcta: que una familia se autodeclare en un
-formulario web no es lo mismo que una evaluación del equipo, y el mail que se
-manda cuando está marcada es una negativa de vacante. Conviene que sea una
-decisión explícita de alguien, no el resultado automático de una casilla.
+Migrar el histórico de las tres planillas de nivel. Las viejas siguen
+operando en paralelo mientras tanto.

@@ -35,6 +35,47 @@ function normalizarFecha(valor) {
   return valor.toString().trim();
 }
 
+/** Saca tildes y pasa a minúsculas, para comparar texto sin depender de cómo se tipeó. */
+function normalizarParaComparar(texto) {
+  if (texto === null || texto === undefined) return '';
+  return texto.toString()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Deduce si la familia declaró proyecto de inclusión a partir del campo
+ * "Trayectoria escolar actual".
+ *
+ * Inicial y Primaria no preguntan por inclusión directamente: la respuesta
+ * viene acá, entre tres opciones cerradas. Sólo una cuenta como inclusión.
+ *
+ * El orden de los chequeos importa y no es casual. La opción de terapias
+ * externas dice "no tiene proyecto de inclusión": contiene la misma frase que
+ * la opción afirmativa. Si se buscara "proyecto de inclusion" primero, esa
+ * familia quedaría marcada como inclusión y recibiría la negativa de vacante
+ * habiendo declarado justo lo contrario. Por eso la negación se descarta antes
+ * que nada.
+ *
+ * Devuelve true, false, o null cuando el texto no coincide con ninguna opción
+ * conocida — null significa "no sé", y el sitio lo muestra para que alguien
+ * decida a mano. Nunca se asume false silenciosamente.
+ */
+function derivarInclusion(trayectoria) {
+  var t = normalizarParaComparar(trayectoria);
+  if (t === '') return null;
+
+  // Primero la negación, porque contiene la frase de la afirmativa.
+  if (t.indexOf('no tiene proyecto de inclusion') !== -1) return false;
+  if (t.indexOf('sin apoyos externos') !== -1) return false;
+  if (t.indexOf('cuenta con un proyecto de inclusion') !== -1) return true;
+
+  return null;
+}
+
 /**
  * Huella de la solicitud de origen. Es lo que evita reimportar.
  *
@@ -102,6 +143,15 @@ function mapearFilaSitio(nivel, encabezados, fila) {
   admision.nivel = nivel;
   admision.estado = ESTADO_INICIAL;
   admision.origen = 'form_web';
+
+  // Inicial y Primaria no preguntan por inclusión: la respuesta está dentro
+  // del campo de trayectoria. Secundaria sí la trae directa, así que sólo se
+  // deriva cuando no vino ya mapeada.
+  if (admision.inclusion_solicitada === undefined || admision.inclusion_solicitada === '') {
+    var derivada = derivarInclusion(admision.trayectoria_texto);
+    admision.inclusion_solicitada = (derivada === null) ? '' : derivada;
+  }
+
   admision.huella = calcularHuella(nivel, admision);
 
   return { admision: admision, ignorados: ignorados };
@@ -302,6 +352,8 @@ function instalarTriggerIngesta() {
 if (typeof module !== 'undefined' && module.exports) {
   Object.assign(module.exports, {
     normalizarFecha: normalizarFecha,
+    normalizarParaComparar: normalizarParaComparar,
+    derivarInclusion: derivarInclusion,
     calcularHuella: calcularHuella,
     mapearFilaSitio: mapearFilaSitio,
     siguienteId: siguienteId

@@ -171,8 +171,60 @@ var MAPEO_SITIO = {
   }
 };
 
+
+/**
+ * Remitente de todos los mails a las familias.
+ *
+ * `admision@sancarlos.edu.ar` tiene que estar configurado como alias de envío
+ * de la cuenta que corre el script (Gmail > Configuración > Cuentas > "Enviar
+ * como"). Si no, Gmail rechaza el From y el envío falla.
+ */
+var REMITENTE = {
+  email: 'admision@sancarlos.edu.ar',
+  nombre: 'Admisiones - Colegio San Carlos Diálogos'
+};
+
+/**
+ * Quién recibe copia de cada mail, por nivel, y sigue la conversación con la
+ * familia desde su propia bandeja.
+ *
+ * Estas direcciones van en Cc y también en Reply-To junto con el remitente.
+ * El Reply-To con dos destinos es lo que hace que funcione: cuando la familia
+ * toca "Responder", la respuesta llega a la directora (que sigue desde ahí) y
+ * a admision@ (que la registra en Eventos). Con un solo Reply-To hay que
+ * elegir entre una cosa o la otra.
+ */
+var COPIAS_POR_NIVEL = {
+  Inicial: ['elianawaichman@sancarlos.edu.ar'],
+  Primaria: ['rhalperin@sancarlos.edu.ar'],
+  Secundaria: [
+    'andreapandolfo@sancarlos.edu.ar',
+    'karina_d@sancarlos.edu.ar',
+    'secretariasecundaria@sancarlos.edu.ar'
+  ]
+};
+
 /** Campos que se guardan como booleano, vengan como "Sí"/"No" o TRUE/FALSE. */
 var CAMPOS_BOOLEANOS = ['bilingue', 'inclusion_solicitada', 'lista_espera'];
+
+/**
+ * Opciones del campo "Trayectoria escolar actual" en los formularios de
+ * Inicial y Primaria.
+ *
+ * Esos dos niveles no tienen una pregunta directa de inclusión: la respuesta
+ * está acá. Sólo la primera opción cuenta como proyecto de inclusión.
+ * Secundaria sí pregunta directo ("Solicita proyecto de inclusión").
+ *
+ * OJO: la opción del medio contiene la frase "proyecto de inclusión" dentro de
+ * una negación. Buscar "inclusión" por substring da un falso positivo y manda
+ * la negativa de vacante a una familia que declaró exactamente lo contrario.
+ * Por eso derivarInclusion() descarta la negación antes de buscar nada más.
+ */
+var TRAYECTORIAS = {
+  CON_INCLUSION: 'Mi hijo/a cuenta con un proyecto de inclusión y equipo de apoyo (MAI/AP/AE).',
+  TERAPIAS_EXTERNAS: 'Mi hijo/a no tiene proyecto de inclusión, pero recibe terapias externas (fonoaudiología, psicopedagogía, etc.).',
+  SIN_APOYOS: 'Mi hijo/a realiza una trayectoria escolar de nivel sin apoyos externos.'
+};
 
 if (typeof module !== 'undefined' && module.exports) {
   Object.assign(module.exports, {
@@ -187,6 +239,9 @@ if (typeof module !== 'undefined' && module.exports) {
     ESTADOS_INICIALES: ESTADOS_INICIALES,
     ESTADO_INICIAL: ESTADO_INICIAL,
     MAPEO_SITIO: MAPEO_SITIO,
-    CAMPOS_BOOLEANOS: CAMPOS_BOOLEANOS
+    CAMPOS_BOOLEANOS: CAMPOS_BOOLEANOS,
+    TRAYECTORIAS: TRAYECTORIAS,
+    REMITENTE: REMITENTE,
+    COPIAS_POR_NIVEL: COPIAS_POR_NIVEL
   });
 }
