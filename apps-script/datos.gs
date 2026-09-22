@@ -4,25 +4,9 @@
  * Todo lo que toca SpreadsheetApp pasa por acá, así el resto del código
  * trabaja con objetos y no con índices de columna — que es justamente lo que
  * hace frágiles a los scripts viejos.
+ *
+ * Los helpers genéricos (hoja_, leerHoja_, filasAObjetos_) están en util.gs.
  */
-
-/** Convierte las filas de una solapa en objetos usando sus encabezados. */
-function filasAObjetos_(encabezados, filas) {
-  return filas.map(function (fila) {
-    var o = {};
-    encabezados.forEach(function (nombre, i) {
-      if (nombre) o[nombre] = fila[i];
-    });
-    return o;
-  });
-}
-
-function hoja_(nombre) {
-  var h = SpreadsheetApp.getActive().getSheetByName(nombre);
-  if (!h) throw new Error('Falta la solapa "' + nombre + '". Corré setup() primero.');
-  return h;
-}
-
 // ───────────────────────────────────────────────────────────────────
 // Admisiones
 // ───────────────────────────────────────────────────────────────────
@@ -131,6 +115,27 @@ function leerEventos(idAdmision) {
     .sort(function (a, b) {
       return (b.timestamp || '').toString().localeCompare((a.timestamp || '').toString());
     });
+}
+
+/**
+ * Agrega un evento al log. Nunca lanza: perder un evento es malo, pero que
+ * una falla de log haga fallar el envío de un mail o una importación es peor.
+ */
+function registrarEvento(evento) {
+  try {
+    var hoja = SpreadsheetApp.getActive().getSheetByName(HOJAS.EVENTOS);
+    if (!hoja) return;
+
+    var fila = COLUMNAS_EVENTOS.map(function (c) {
+      if (c === 'id') return Utilities.getUuid();
+      if (c === 'timestamp') return evento.timestamp || new Date().toISOString();
+      var v = evento[c];
+      return (v === undefined || v === null) ? '' : v;
+    });
+    hoja.appendRow(fila);
+  } catch (err) {
+    console.error('No se pudo registrar el evento: ' + err);
+  }
 }
 
 /** Deja registrada una llamada telefónica. Es el primer contacto en Secundaria. */

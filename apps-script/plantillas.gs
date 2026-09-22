@@ -7,6 +7,8 @@
  *
  * Las funciones puras (renderizar, evaluarCondicion, elegirPlantilla) no tocan
  * SpreadsheetApp y se testean con node — ver test/plantillas.test.js.
+ *
+ * La normalización de valores (aBooleano, aNumero) vive en util.gs.
  */
 
 /** Nombre de la solapa que guarda las plantillas. */
@@ -32,35 +34,7 @@ var CAMPOS_DISPONIBLES = [
 /** Link a los aranceles vigentes, disponible como {{url_aranceles}}. */
 var URL_ARANCELES = 'https://docs.google.com/spreadsheets/d/1O9gDK1i3PJIeMTrAtGhnNaYAp6PzNCzjUYGTX5uw-qM/edit?usp=sharing';
 
-// ───────────────────────────────────────────────────────────────────
-// Normalización
-// ───────────────────────────────────────────────────────────────────
 
-/**
- * Lleva a booleano los muchos formatos que conviven en las planillas.
- * Relevados: TRUE/FALSE (checkbox), "Sí"/"No" (formulario), "true"/"false".
- * Devuelve null si el valor no representa un booleano.
- */
-function aBooleano(valor) {
-  if (valor === true || valor === false) return valor;
-  if (valor === null || valor === undefined) return null;
-
-  var t = valor.toString().trim().toLowerCase();
-  if (t === 'true' || t === 'sí' || t === 'si' || t === 'x') return true;
-  if (t === 'false' || t === 'no' || t === '') return false;
-  return null;
-}
-
-/** Devuelve el valor como número, o null si no es numérico. */
-function aNumero(valor) {
-  if (typeof valor === 'number') return isNaN(valor) ? null : valor;
-  if (valor === null || valor === undefined) return null;
-
-  var t = valor.toString().trim();
-  if (t === '') return null;
-  var n = Number(t);
-  return isNaN(n) ? null : n;
-}
 
 // ───────────────────────────────────────────────────────────────────
 // Condiciones
@@ -457,8 +431,6 @@ var PLANTILLAS_INICIALES = [
 // porque `module` no existe en su runtime.
 if (typeof module !== 'undefined' && module.exports) {
   Object.assign(module.exports, {
-    aBooleano: aBooleano,
-    aNumero: aNumero,
     evaluarCondicion: evaluarCondicion,
     elegirPlantilla: elegirPlantilla,
     renderizar: renderizar,

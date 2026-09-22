@@ -9,7 +9,7 @@ const assert = require('node:assert');
 const { cargar } = require('./helpers');
 
 // Mismo orden de carga que en Apps Script: config, después lo que lo usa.
-const I = cargar('config.gs', 'plantillas.gs', 'ingesta.gs');
+const I = cargar('util.gs', 'config.gs', 'plantillas.gs', 'ingesta.gs');
 
 /**
  * Encabezados exactos de cada solapa de "Admisiones - Respuestas Sitio Web",

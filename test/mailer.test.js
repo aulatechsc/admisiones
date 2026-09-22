@@ -8,7 +8,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { cargar } = require('./helpers');
 
-const M = cargar('config.gs', 'plantillas.gs', 'ingesta.gs', 'mailer.gs', 'fichas.gs');
+const M = cargar('util.gs', 'config.gs', 'plantillas.gs', 'ingesta.gs', 'mailer.gs', 'fichas.gs');
 
 // ───────────────────────────────────────────────────────────────────
 // Reply-To: el mecanismo que hace que las directoras reciban las respuestas

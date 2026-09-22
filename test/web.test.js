@@ -11,7 +11,7 @@ const path = require('node:path');
 const { cargar } = require('./helpers');
 
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
-const A = cargar('config.gs', 'plantillas.gs', 'ingesta.gs', 'api.gs');
+const A = cargar('util.gs', 'config.gs', 'plantillas.gs', 'ingesta.gs', 'api.gs');
 
 // ───────────────────────────────────────────────────────────────────
 // El sitio

@@ -12,27 +12,39 @@ compartido (no en "Mi unidad" de una persona) y llamarla, por ejemplo,
 
 ## 2. Pegar el código
 
-`Extensiones > Apps Script`. Crear un archivo por cada uno de estos y pegar su
-contenido:
+`Extensiones > Apps Script`. Son **dos archivos**:
 
-| Archivo en el repo | Archivo en Apps Script |
-|---|---|
-| `apps-script/config.gs` | `config.gs` |
-| `apps-script/plantillas.gs` | `plantillas.gs` |
-| `apps-script/ingesta.gs` | `ingesta.gs` |
-| `apps-script/datos.gs` | `datos.gs` |
-| `apps-script/mailer.gs` | `mailer.gs` |
-| `apps-script/fichas.gs` | `fichas.gs` |
-| `apps-script/api.gs` | `api.gs` |
-| `apps-script/setup.gs` | `setup.gs` |
-| `web/index.html` | `index` (tipo HTML) |
+| Pegar esto | En un archivo llamado | Tipo |
+|---|---|---|
+| [`dist/Codigo.gs`](../dist/Codigo.gs) | `Codigo` | Secuencia de comandos |
+| [`web/index.html`](../web/index.html) | `index` | HTML |
 
-> **No pegar nada de `apps-script/legacy/`.** Esos archivos son la copia de
-> respaldo de los scripts que hoy corren dentro de las planillas de cada
-> nivel. Tienen funciones con el mismo nombre (`setup`, `instalarTrigger`),
-> así que mezclarlos rompe las dos cosas.
+`Codigo.gs` es generado: junta los nueve módulos de `apps-script/` en un solo
+archivo. El código real vive en módulos separados, pero pegarlos de a uno en
+el editor es lento y propenso a que alguno quede cortado o sin pegar — y como
+todos comparten el mismo scope global, un archivo faltante no falla al pegarlo
+sino después, como un `ReferenceError` en otro módulo que sí está.
 
-Guardar con el disquete.
+Para regenerarlo después de tocar el código: `npm run bundle`.
+
+El nombre `index` del HTML importa: `api.gs` hace
+`createHtmlOutputFromFile('index')`. Con otro nombre, el sitio no abre.
+
+> **No pegar nada de `apps-script/legacy/`.** Son la copia de respaldo de los
+> scripts que hoy corren dentro de las planillas de cada nivel. Tienen
+> funciones con el mismo nombre (`setup`, `instalarTrigger`), así que
+> mezclarlos rompe las dos cosas.
+
+### Si preferís no copiar y pegar
+
+`clasp` sube los módulos directo desde el repo y te evita todo esto:
+
+    npm i -g @google/clasp
+    clasp login
+    clasp clone <id-del-proyecto>
+    clasp push
+
+Con clasp el bundle no hace falta.
 
 ## 3. Correr el setup
 

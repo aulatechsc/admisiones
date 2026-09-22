@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admisiones</title>
+<style>
+  :root {
+    --azul: #00476c;
+    --azul-claro: #ddeef5;
+    --borde: #aac8d8;
+    --fondo: #f7fafc;
+    --panel: #ffffff;
+    --texto: #1a2733;
+    --suave: #5a6b7a;
+    --linea: #e2e8ee;
+    --ok: #d9ead3;
+    --ok-texto: #1e4620;
+    --alerta: #fff3cd;
+    --alerta-texto: #6b4e00;
+    --error: #f4cccc;
+    --error-texto: #7a1c1c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --azul: #8fc4e0;
+      --azul-claro: #16323f;
+      --borde: #2c4a5c;
+      --fondo: #0f1721;
+      --panel: #16202c;
+      --texto: #e6edf3;
+      --suave: #9aacbb;
+      --linea: #243240;
+      --ok: #1e3a22;
+      --ok-texto: #a8d5a8;
+      --alerta: #3d3117;
+      --alerta-texto: #e8d18a;
+      --error: #3d1c1c;
+      --error-texto: #f0a8a8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --azul: #8fc4e0;
+    --azul-claro: #16323f;
+    --borde: #2c4a5c;
+    --fondo: #0f1721;
+    --panel: #16202c;
+    --texto: #e6edf3;
+    --suave: #9aacbb;
+    --linea: #243240;
+    --ok: #1e3a22;
+    --ok-texto: #a8d5a8;
+    --alerta: #3d3117;
+    --alerta-texto: #e8d18a;
+    --error: #3d1c1c;
+    --error-texto: #f0a8a8;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    background: var(--azul);
+    color: #fff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  header .quien { margin-left: auto; font-size: 13px; opacity: .9; }
+  main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+
+  .barra { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  input, select, textarea, button {
+    font: inherit; color: inherit;
+    border: 1px solid var(--borde); border-radius: 6px;
+    padding: 7px 10px; background: var(--panel);
+  }
+  textarea { width: 100%; min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  button { cursor: pointer; background: var(--panel); }
+  button:hover:not(:disabled) { border-color: var(--azul); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primario { background: var(--azul); color: #fff; border-color: var(--azul); font-weight: 600; }
+  button.primario:hover:not(:disabled) { filter: brightness(1.15); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--linea); font-size: 14px; }
+  th { background: var(--azul-claro); color: var(--azul); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--azul-claro); }
+
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 11px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+  .capa {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    display: flex; justify-content: center; align-items: flex-start;
+    padding: 20px; overflow-y: auto; z-index: 50;
+  }
+  .ficha {
+    background: var(--panel); border-radius: 10px; padding: 20px;
+    width: 100%; max-width: 780px; margin: auto;
+  }
+  .ficha h2 { margin: 0 0 2px; font-size: 20px; color: var(--azul); }
+  .ficha .sub { color: var(--suave); font-size: 14px; margin-bottom: 16px; }
+
+  .campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .campo label { display: block; font-size: 11px; text-transform: uppercase; color: var(--suave); letter-spacing: .03em; margin-bottom: 2px; }
+  .campo input, .campo select { width: 100%; }
+
+  .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+
+  .timeline { border-left: 2px solid var(--borde); margin-left: 7px; padding-left: 14px; }
+  .evento { margin-bottom: 14px; position: relative; }
+  .evento::before {
+    content: ''; position: absolute; left: -20px; top: 5px;
+    width: 9px; height: 9px; border-radius: 50%; background: var(--azul);
+  }
+  .evento .cabeza { font-size: 12px; color: var(--suave); }
+  .evento .titulo { font-weight: 600; font-size: 14px; }
+  .evento .cuerpo {
+    white-space: pre-wrap; font-size: 13px; color: var(--suave);
+    background: var(--fondo); padding: 8px 10px; border-radius: 6px; margin-top: 4px;
+    max-height: 190px; overflow-y: auto;
+  }
+
+  .aviso { padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; }
+  .aviso.ok { background: var(--ok); color: var(--ok-texto); }
+  .aviso.alerta { background: var(--alerta); color: var(--alerta-texto); }
+  .aviso.error { background: var(--error); color: var(--error-texto); }
+
+  .vacio { text-align: center; padding: 50px 20px; color: var(--suave); }
+  .oculto { display: none !important; }
+  h3 { font-size: 13px; text-transform: uppercase; color: var(--suave); letter-spacing: .04em; margin: 18px 0 8px; }
+  .cabecera-modal { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .cabecera-modal h2 { margin: 0; flex: 1; }
+  .meta { font-size: 13px; color: var(--suave); margin-bottom: 4px; }
+  .meta b { color: var(--texto); font-weight: 600; }
+
+  @media (max-width: 700px) {
+    .ocultar-chico { display: none; }
+    main { padding: 10px; }
+    .ficha { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login" class="capa oculto">
+  <div class="ficha" style="max-width:420px;text-align:center">
+    <h2>Admisiones</h2>
+    <p class="sub">Colegio San Carlos Diálogos</p>
+    <p style="font-size:14px">Entrá con tu cuenta <b>@sancarlos.edu.ar</b></p>
+    <div id="botonGoogle" style="display:flex;justify-content:center;margin-top:16px"></div>
+    <div id="errorLogin"></div>
+  </div>
+</div>
+
+<header>
+  <h1>Admisiones</h1>
+  <span class="quien" id="quien"></span>
+</header>
+
+<main>
+  <div class="barra">
+    <input id="buscar" placeholder="Buscar por alumno, familia o mail" style="flex:1;min-width:200px">
+    <select id="filtroEstado"><option value="">Todos los estados</option></select>
+    <select id="filtroAnio"><option value="">Todos los años</option></select>
+    <button id="btnRefrescar">Actualizar</button>
+    <button id="btnImportar">Importar del sitio</button>
+    <button id="btnPlantillas">Plantillas</button>
+  </div>
+
+  <div id="avisos"></div>
+  <div id="lista"><div class="vacio">Cargando…</div></div>
+</main>
+
+<div id="modal" class="capa oculto"></div>
+
+<script>
+/* ─────────────────────────────────────────────────────────────
+   Transporte
+
+   El mismo archivo sirve servido por Apps Script y desde Vercel.
+   Bajo Apps Script existe google.script.run y no hace falta token.
+   Desde afuera se manda el ID token de Google en cada llamada.
+
+   El Content-Type es text/plain a propósito: así el navegador lo trata
+   como "simple request" y no dispara el preflight OPTIONS, que las web
+   apps de Apps Script no contestan.
+   ───────────────────────────────────────────────────────────── */
+
+var URL_API = '';        // Pegá acá la URL de la web app (sólo para Vercel)
+var CLIENT_ID = '';      // Client ID de OAuth (sólo para Vercel)
+
+var idToken = null;
+var enAppsScript = typeof google !== 'undefined' && google.script && google.script.run;
+
+function api(accion, params) {
+  if (enAppsScript) {
+    return new Promise(function (resolver, rechazar) {
+      google.script.run
+        .withSuccessHandler(resolver)
+        .withFailureHandler(function (e) { rechazar(new Error(e.message || e)); })
+        .llamar(accion, params || {});
+    });
+  }
+  return fetch(URL_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ accion: accion, params: params || {}, id_token: idToken })
+  }).then(function (r) { return r.json(); });
+}
+
+/* ───────────────────────────── Estado ───────────────────────────── */
+
+var sesion = null;
+var estados = [];
+var admisiones = [];
+
+function esc(t) {
+  return (t === null || t === undefined ? '' : String(t))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function avisar(texto, tipo) {
+  var c = document.getElementById('avisos');
+  c.innerHTML = '<div class="aviso ' + (tipo || 'ok') + '">' + esc(texto) + '</div>';
+  if (tipo !== 'error') setTimeout(function () { c.innerHTML = ''; }, 6000);
+}
+
+function nombreEstado(id) {
+  for (var i = 0; i < estados.length; i++) if (estados[i].id === id) return estados[i].nombre;
+  return id || '';
+}
+function colorEstado(id) {
+  for (var i = 0; i < estados.length; i++) if (estados[i].id === id) return estados[i].color;
+  return '#eee';
+}
+
+function fecha(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return d.toLocaleDateString('es-AR') + ' ' +
+         d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+}
+
+/* ───────────────────────────── Arranque ───────────────────────────── */
+
+function arrancar() {
+  api('sesion').then(function (r) {
+    if (!r.ok) { mostrarError(r.error); return; }
+    sesion = r.usuario;
+    estados = r.estados;
+
+    document.getElementById('quien').textContent =
+      sesion.nombre + ' · ' + (sesion.rol === 'admin' ? 'todos los niveles' : sesion.niveles.join(', '));
+
+    var sel = document.getElementById('filtroEstado');
+    estados.forEach(function (e) {
+      sel.insertAdjacentHTML('beforeend', '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>');
+    });
+
+    document.getElementById('login').classList.add('oculto');
+    cargar();
+  }).catch(function (e) { mostrarError(e.message); });
+}
+
+function mostrarError(msg) {
+  document.getElementById('lista').innerHTML =
+    '<div class="aviso error">' + esc(msg) + '</div>';
+}
+
+function cargar() {
+  var filtros = {
+    texto: document.getElementById('buscar').value.trim(),
+    estado: document.getElementById('filtroEstado').value,
+    anio: document.getElementById('filtroAnio').value
+  };
+  document.getElementById('lista').innerHTML = '<div class="vacio">Cargando…</div>';
+
+  api('listar', filtros).then(function (r) {
+    if (!r.ok) { mostrarError(r.error); return; }
+    admisiones = r.admisiones;
+    poblarAnios();
+    pintarLista();
+  }).catch(function (e) { mostrarError(e.message); });
+}
+
+function poblarAnios() {
+  var sel = document.getElementById('filtroAnio');
+  if (sel.dataset.listo) return;
+  var vistos = {};
+  admisiones.forEach(function (a) { if (a.anio_vacante) vistos[a.anio_vacante] = true; });
+  Object.keys(vistos).sort().forEach(function (a) {
+    sel.insertAdjacentHTML('beforeend', '<option value="' + esc(a) + '">' + esc(a) + '</option>');
+  });
+  sel.dataset.listo = '1';
+}
+
+function pintarLista() {
+  if (!admisiones.length) {
+    document.getElementById('lista').innerHTML =
+      '<div class="vacio">No hay admisiones que coincidan.</div>';
+    return;
+  }
+
+  var filas = admisiones.map(function (a) {
+    return '<tr data-id="' + esc(a.id) + '">' +
+      '<td><b>' + esc(a.alumno_nombre) + '</b>' +
+        (a.inclusion_solicitada === true || a.inclusion_solicitada === 'TRUE'
+          ? ' <span class="pill" style="background:var(--alerta);color:var(--alerta-texto)">inclusión</span>' : '') +
+      '</td>' +
+      '<td class="ocultar-chico">' + esc(a.nivel) + '</td>' +
+      '<td>' + esc(a.grado_solicitado) + '</td>' +
+      '<td class="ocultar-chico">' + esc(a.anio_vacante) + '</td>' +
+      '<td class="ocultar-chico">' + esc(a.tutor1_nombre) + '</td>' +
+      '<td><span class="pill" style="background:' + esc(colorEstado(a.estado)) + ';color:#1a2733">' +
+        esc(nombreEstado(a.estado)) + '</span></td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById('lista').innerHTML =
+    '<table><thead><tr>' +
+      '<th>Alumno/a</th><th class="ocultar-chico">Nivel</th><th>Solicita</th>' +
+      '<th class="ocultar-chico">Año</th><th class="ocultar-chico">Familia</th><th>Estado</th>' +
+    '</tr></thead><tbody>' + filas + '</tbody></table>';
+
+  Array.prototype.forEach.call(document.querySelectorAll('#lista tr[data-id]'), function (tr) {
+    tr.onclick = function () { abrirFicha(tr.dataset.id); };
+  });
+}
+
+/* ───────────────────────────── Ficha ───────────────────────────── */
+
+function cerrarModal() {
+  document.getElementById('modal').classList.add('oculto');
+  document.getElementById('modal').innerHTML = '';
+}
+
+function abrirFicha(id) {
+  var m = document.getElementById('modal');
+  m.classList.remove('oculto');
+  m.innerHTML = '<div class="ficha"><div class="vacio">Cargando…</div></div>';
+
+  api('detalle', { id: id }).then(function (r) {
+    if (!r.ok) { m.innerHTML = '<div class="ficha"><div class="aviso error">' + esc(r.error) +
+      '</div><button onclick="cerrarModal()">Cerrar</button></div>'; return; }
+    pintarFicha(r.admision, r.eventos);
+  });
+}
+
+function campo(etiq, nombre, valor, tipo) {
+  return '<div class="campo"><label>' + esc(etiq) + '</label>' +
+    '<input data-campo="' + esc(nombre) + '" type="' + (tipo || 'text') +
+    '" value="' + esc(valor) + '"></div>';
+}
+
+function pintarFicha(a, eventos) {
+  var opcionesEstado = estados.map(function (e) {
+    return '<option value="' + esc(e.id) + '"' + (e.id === a.estado ? ' selected' : '') + '>' +
+      esc(e.nombre) + '</option>';
+  }).join('');
+
+  var inclusion = a.inclusion_solicitada;
+  var valorInc = (inclusion === true || inclusion === 'TRUE') ? 'si'
+    : (inclusion === false || inclusion === 'FALSE') ? 'no' : '';
+
+  var html =
+    '<div class="ficha">' +
+      '<div class="cabecera-modal">' +
+        '<h2>' + esc(a.alumno_nombre) + '</h2>' +
+        '<button onclick="cerrarModal()">Cerrar</button>' +
+      '</div>' +
+      '<div class="sub">' + esc(a.nivel) + ' · ' + esc(a.grado_solicitado) +
+        ' · ciclo ' + esc(a.anio_vacante) + ' · <code>' + esc(a.id) + '</code></div>' +
+
+      (valorInc === '' && a.trayectoria_texto
+        ? '<div class="aviso alerta">No se pudo deducir si pide proyecto de inclusión. ' +
+          'Declaró: "' + esc(a.trayectoria_texto) + '". Marcalo abajo antes de enviar el mail.</div>'
+        : '') +
+
+      '<h3>Estado</h3>' +
+      '<div class="barra">' +
+        '<select id="selEstado">' + opcionesEstado + '</select>' +
+        '<input id="notaEstado" placeholder="Nota del cambio (opcional)" style="flex:1">' +
+        '<button id="btnEstado">Guardar estado</button>' +
+      '</div>' +
+
+      '<h3>Datos</h3>' +
+      '<div class="campos">' +
+        campo('Alumno/a', 'alumno_nombre', a.alumno_nombre) +
+        campo('Fecha de nacimiento', 'alumno_fecha_nac', a.alumno_fecha_nac) +
+        campo('DNI', 'alumno_dni', a.alumno_dni) +
+        campo('Solicita', 'grado_solicitado', a.grado_solicitado) +
+        campo('Actualmente en', 'grado_actual', a.grado_actual) +
+        campo('Escuela actual', 'escuela_actual', a.escuela_actual) +
+        campo('Familia', 'tutor1_nombre', a.tutor1_nombre) +
+        campo('Familia 2', 'tutor2_nombre', a.tutor2_nombre) +
+        campo('Celular', 'celular', a.celular) +
+        campo('Mail', 'email', a.email, 'email') +
+        '<div class="campo"><label>Proyecto de inclusión</label>' +
+          '<select data-campo="inclusion_solicitada">' +
+            '<option value=""' + (valorInc === '' ? ' selected' : '') + '>Sin definir</option>' +
+            '<option value="si"' + (valorInc === 'si' ? ' selected' : '') + '>Sí</option>' +
+            '<option value="no"' + (valorInc === 'no' ? ' selected' : '') + '>No</option>' +
+          '</select></div>' +
+        campo('Responsable', 'responsable', a.responsable) +
+      '</div>' +
+      '<button id="btnGuardar">Guardar datos</button>' +
+
+      '<h3>Acciones</h3>' +
+      '<div class="acciones">' +
+        '<button class="primario" id="btnMail">Enviar mail</button>' +
+        '<button id="btnLlamada">Registrar llamada</button>' +
+        '<button id="btnNota">Agregar nota</button>' +
+        '<button id="btnFicha">Generar ficha PDF</button>' +
+        (a.pdf_url ? '<a href="' + esc(a.pdf_url) + '" target="_blank" rel="noopener"><button>Ver ficha</button></a>' : '') +
+      '</div>' +
+
+      '<div id="avisoFicha"></div>' +
+
+      '<h3>Recorrido</h3>' +
+      '<div class="timeline">' + pintarEventos(eventos) + '</div>' +
+    '</div>';
+
+  document.getElementById('modal').innerHTML = html;
+
+  document.getElementById('btnEstado').onclick = function () {
+    accion('cambiarEstado', {
+      id: a.id,
+      estado: document.getElementById('selEstado').value,
+      nota: document.getElementById('notaEstado').value
+    }, a.id);
+  };
+
+  document.getElementById('btnGuardar').onclick = function () {
+    var cambios = {};
+    Array.prototype.forEach.call(document.querySelectorAll('[data-campo]'), function (el) {
+      var v = el.value;
+      if (el.dataset.campo === 'inclusion_solicitada') {
+        if (v === '') return;
+        v = (v === 'si');
+      }
+      cambios[el.dataset.campo] = v;
+    });
+    accion('actualizar', { id: a.id, cambios: cambios }, a.id);
+  };
+
+  document.getElementById('btnMail').onclick = function () { abrirMail(a.id); };
+
+  document.getElementById('btnLlamada').onclick = function () {
+    var d = prompt('¿Qué se habló en la llamada?');
+    if (d) accion('registrarLlamada', { id: a.id, detalle: d }, a.id);
+  };
+
+  document.getElementById('btnNota').onclick = function () {
+    var t = prompt('Nota interna:');
+    if (t) accion('agregarNota', { id: a.id, texto: t }, a.id);
+  };
+
+  document.getElementById('btnFicha').onclick = function () {
+    var b = document.getElementById('btnFicha');
+    b.disabled = true;
+    b.textContent = 'Generando…';
+    api('generarFicha', { id: a.id }).then(function (r) {
+      if (!r.ok) {
+        document.getElementById('avisoFicha').innerHTML =
+          '<div class="aviso error">' + esc(r.error) + '</div>';
+        b.disabled = false; b.textContent = 'Generar ficha PDF';
+        return;
+      }
+      abrirFicha(a.id);
+      window.open(r.resultado.url, '_blank');
+    });
+  };
+}
+
+function pintarEventos(eventos) {
+  if (!eventos.length) return '<div class="vacio">Todavía no hay movimientos.</div>';
+
+  var etiqueta = {
+    alta: 'Alta', mail_enviado: 'Mail enviado', mail_recibido: 'Respuesta recibida',
+    llamada: 'Llamada', cambio_estado: 'Cambio de estado', nota: 'Nota', pdf_generado: 'Ficha generada'
+  };
+
+  return eventos.map(function (e) {
+    return '<div class="evento">' +
+      '<div class="cabeza">' + esc(fecha(e.timestamp)) + ' · ' + esc(e.usuario) + '</div>' +
+      '<div class="titulo">' + esc(etiqueta[e.tipo] || e.tipo) +
+        (e.asunto ? ' — ' + esc(e.asunto) : '') + '</div>' +
+      (e.detalle ? '<div class="cuerpo">' + esc(e.detalle) + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function accion(nombre, params, idRecargar) {
+  api(nombre, params).then(function (r) {
+    if (!r.ok) {
+      document.getElementById('avisoFicha').innerHTML =
+        '<div class="aviso error">' + esc(r.error) + '</div>';
+      return;
+    }
+    abrirFicha(idRecargar);
+    cargar();
+  });
+}
+
+/* ───────────────────────────── Mail ───────────────────────────── */
+
+function abrirMail(id, idPlantilla) {
+  var m = document.getElementById('modal');
+  m.innerHTML = '<div class="ficha"><div class="vacio">Preparando el mail…</div></div>';
+
+  api('previsualizarMail', { id: id, idPlantilla: idPlantilla }).then(function (r) {
+    if (!r.ok) {
+      m.innerHTML = '<div class="ficha"><div class="aviso error">' + esc(r.error) + '</div>' +
+        '<button onclick="abrirFicha(\'' + esc(id) + '\')">Volver</button></div>';
+      return;
+    }
+
+    var p = r.previsualizacion;
+    if (!p.ok) {
+      m.innerHTML = '<div class="ficha"><div class="aviso alerta">' + esc(p.motivo) + '</div>' +
+        '<button onclick="abrirFicha(\'' + esc(id) + '\')">Volver</button></div>';
+      return;
+    }
+
+    var opciones = p.disponibles.map(function (d) {
+      return '<option value="' + esc(d.id) + '"' + (d.id === p.plantilla.id ? ' selected' : '') + '>' +
+        esc(d.nombre) + '</option>';
+    }).join('');
+
+    m.innerHTML =
+      '<div class="ficha">' +
+        '<div class="cabecera-modal">' +
+          '<h2>Enviar mail</h2>' +
+          '<button onclick="abrirFicha(\'' + esc(id) + '\')">Volver</button>' +
+        '</div>' +
+
+        '<div class="meta">De: <b>' + esc(p.de) + '</b></div>' +
+        '<div class="meta">Para: <b>' + esc(p.para) + '</b></div>' +
+        (p.copias.length ? '<div class="meta">Copia a: <b>' + esc(p.copias.join(', ')) + '</b></div>' : '') +
+        '<div class="meta">Las respuestas llegan a: <b>' + esc(p.responderA.join(', ')) + '</b></div>' +
+
+        (p.faltantes.length
+          ? '<div class="aviso error">Faltan datos: <b>' + esc(p.faltantes.join(', ')) +
+            '</b>. Completalos en la ficha o editá el texto antes de enviar.</div>'
+          : '') +
+
+        '<h3>Plantilla</h3>' +
+        '<select id="selPlantilla" style="width:100%">' + opciones + '</select>' +
+
+        '<h3>Asunto</h3>' +
+        '<input id="asunto" value="' + esc(p.asunto) + '" style="width:100%">' +
+
+        '<h3>Mensaje</h3>' +
+        '<textarea id="cuerpo">' + esc(p.cuerpo) + '</textarea>' +
+
+        '<div id="avisoMail"></div>' +
+        '<div class="acciones">' +
+          '<button class="primario" id="btnEnviar">Enviar</button>' +
+          '<button onclick="abrirFicha(\'' + esc(id) + '\')">Cancelar</button>' +
+        '</div>' +
+      '</div>';
+
+    document.getElementById('selPlantilla').onchange = function () {
+      abrirMail(id, this.value);
+    };
+
+    document.getElementById('btnEnviar').onclick = function () {
+      var b = document.getElementById('btnEnviar');
+      b.disabled = true;
+      b.textContent = 'Enviando…';
+
+      api('enviarMail', {
+        id: id,
+        idPlantilla: document.getElementById('selPlantilla').value,
+        asunto: document.getElementById('asunto').value,
+        cuerpo: document.getElementById('cuerpo').value
+      }).then(function (r) {
+        if (!r.ok || !r.resultado.ok) {
+          document.getElementById('avisoMail').innerHTML =
+            '<div class="aviso error">' + esc(r.error || r.resultado.motivo) + '</div>';
+          b.disabled = false;
+          b.textContent = 'Enviar';
+          return;
+        }
+        abrirFicha(id);
+        cargar();
+        avisar('Mail enviado. Copia a: ' + (r.resultado.copias.join(', ') || 'nadie'));
+      });
+    };
+  });
+}
+
+/* ───────────────────────────── Plantillas ───────────────────────────── */
+
+function abrirPlantillas() {
+  var m = document.getElementById('modal');
+  m.classList.remove('oculto');
+  m.innerHTML = '<div class="ficha"><div class="vacio">Cargando…</div></div>';
+
+  api('plantillas').then(function (r) {
+    if (!r.ok) { m.innerHTML = '<div class="ficha"><div class="aviso error">' + esc(r.error) +
+      '</div><button onclick="cerrarModal()">Cerrar</button></div>'; return; }
+
+    var lista = r.plantillas.map(function (p) {
+      return '<tr data-id="' + esc(p.id) + '"><td><b>' + esc(p.nombre) + '</b><br>' +
+        '<span class="meta">' + esc(p.nivel) + ' · se usa cuando: <code>' + esc(p.condicion) +
+        '</code></span></td></tr>';
+    }).join('');
+
+    m.innerHTML =
+      '<div class="ficha">' +
+        '<div class="cabecera-modal"><h2>Plantillas de mail</h2>' +
+        '<button onclick="cerrarModal()">Cerrar</button></div>' +
+        '<p class="sub">Los textos se editan acá. Usá ' +
+          r.campos.map(function (c) { return '<code>{{' + esc(c) + '}}</code>'; }).join(' ') +
+          ' para insertar los datos de cada familia.</p>' +
+        '<table><tbody>' + lista + '</tbody></table>' +
+      '</div>';
+
+    Array.prototype.forEach.call(m.querySelectorAll('tr[data-id]'), function (tr) {
+      tr.onclick = function () {
+        var p = r.plantillas.filter(function (x) { return x.id === tr.dataset.id; })[0];
+        editarPlantilla(p, r.campos);
+      };
+    });
+  });
+}
+
+function editarPlantilla(p, campos) {
+  document.getElementById('modal').innerHTML =
+    '<div class="ficha">' +
+      '<div class="cabecera-modal"><h2>' + esc(p.nombre) + '</h2>' +
+      '<button onclick="abrirPlantillas()">Volver</button></div>' +
+      '<div class="meta">' + esc(p.nivel) + ' · Campos: ' +
+        campos.map(function (c) { return '<code>{{' + esc(c) + '}}</code>'; }).join(' ') + '</div>' +
+
+      '<h3>Se usa cuando</h3>' +
+      '<input id="pCond" value="' + esc(p.condicion) + '" style="width:100%">' +
+      '<div class="meta" style="margin-top:4px"><code>*</code> para la plantilla por defecto, ' +
+        'o <code>campo operador valor</code> — por ejemplo <code>anio_vacante &gt;= 2028</code>.</div>' +
+
+      '<h3>Asunto</h3>' +
+      '<input id="pAsunto" value="' + esc(p.asunto) + '" style="width:100%">' +
+
+      '<h3>Mensaje</h3>' +
+      '<textarea id="pCuerpo">' + esc(p.cuerpo) + '</textarea>' +
+
+      '<div id="avisoPlantilla"></div>' +
+      '<div class="acciones"><button class="primario" id="btnGuardarP">Guardar</button></div>' +
+    '</div>';
+
+  document.getElementById('btnGuardarP').onclick = function () {
+    api('guardarPlantilla', {
+      plantilla: {
+        id: p.id, nivel: p.nivel, nombre: p.nombre, prioridad: p.prioridad, activa: p.activa,
+        condicion: document.getElementById('pCond').value,
+        asunto: document.getElementById('pAsunto').value,
+        cuerpo: document.getElementById('pCuerpo').value
+      }
+    }).then(function (r) {
+      if (!r.ok) {
+        document.getElementById('avisoPlantilla').innerHTML =
+          '<div class="aviso error">' + esc(r.error) + '</div>';
+        return;
+      }
+      abrirPlantillas();
+      avisar('Plantilla guardada.');
+    });
+  };
+}
+
+/* ───────────────────────────── Eventos de la página ───────────────────────────── */
+
+document.getElementById('btnRefrescar').onclick = cargar;
+document.getElementById('btnPlantillas').onclick = abrirPlantillas;
+document.getElementById('filtroEstado').onchange = cargar;
+document.getElementById('filtroAnio').onchange = cargar;
+
+var tecleo;
+document.getElementById('buscar').oninput = function () {
+  clearTimeout(tecleo);
+  tecleo = setTimeout(cargar, 350);
+};
+
+document.getElementById('btnImportar').onclick = function () {
+  var b = document.getElementById('btnImportar');
+  b.disabled = true;
+  b.textContent = 'Importando…';
+  api('importar').then(function (r) {
+    b.disabled = false;
+    b.textContent = 'Importar del sitio';
+    if (!r.ok) { avisar(r.error, 'error'); return; }
+    avisar('Importadas: ' + r.resumen.importadas + '. Ya estaban: ' + r.resumen.salteadas + '.');
+    cargar();
+  });
+};
+
+document.getElementById('modal').onclick = function (ev) {
+  if (ev.target === this) cerrarModal();
+};
+document.addEventListener('keydown', function (ev) {
+  if (ev.key === 'Escape') cerrarModal();
+});
+
+/* ───────────────────────────── Login ───────────────────────────── */
+
+function entrar(respuesta) {
+  idToken = respuesta.credential;
+  arrancar();
+}
+
+if (enAppsScript) {
+  arrancar();
+} else {
+  document.getElementById('login').classList.remove('oculto');
+
+  if (!URL_API || !CLIENT_ID) {
+    document.getElementById('errorLogin').innerHTML =
+      '<div class="aviso error">Falta configurar <code>URL_API</code> y ' +
+      '<code>CLIENT_ID</code> en index.html. Ver docs/sitio.md.</div>';
+  } else {
+    var s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.onload = function () {
+      google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+        callback: entrar,
+        hd: 'sancarlos.edu.ar'
+      });
+      google.accounts.id.renderButton(document.getElementById('botonGoogle'), {
+        theme: 'outline', size: 'large', text: 'signin_with', locale: 'es'
+      });
+    };
+    document.head.appendChild(s);
+  }
+}
+</script>
+</body>
+</html>

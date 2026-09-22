@@ -4,6 +4,7 @@
   "private": true,
   "description": "Sistema de admisiones - Colegio San Carlos Dialogos",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "bundle": "node tools/bundle.js"
   }
 }

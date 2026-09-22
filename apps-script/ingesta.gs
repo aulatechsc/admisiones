@@ -11,40 +11,16 @@
  * saltean lo ya importado. Se puede correr a mano o por trigger sin miedo a
  * duplicar.
  *
- * Las funciones puras (normalizarFecha, calcularHuella, mapearFilaSitio) no
+ * Las funciones puras (calcularHuella, derivarInclusion, mapearFilaSitio) no
  * tocan SpreadsheetApp y se testean con node — ver test/ingesta.test.js.
+ * La normalización de valores y el acceso genérico a solapas están en util.gs.
  */
 
 // ───────────────────────────────────────────────────────────────────
 // Funciones puras
 // ───────────────────────────────────────────────────────────────────
 
-/**
- * Lleva una fecha a texto ISO estable.
- *
- * La planilla del sitio guarda `Fecha de envío` con `new Date()`, así que
- * vuelve como Date; el resto de los campos vienen como texto ya formateado.
- * La huella depende de esto, así que tiene que dar siempre lo mismo para el
- * mismo instante.
- */
-function normalizarFecha(valor) {
-  if (valor === null || valor === undefined || valor === '') return '';
-  if (valor instanceof Date) {
-    return isNaN(valor.getTime()) ? '' : valor.toISOString();
-  }
-  return valor.toString().trim();
-}
 
-/** Saca tildes y pasa a minúsculas, para comparar texto sin depender de cómo se tipeó. */
-function normalizarParaComparar(texto) {
-  if (texto === null || texto === undefined) return '';
-  return texto.toString()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 /**
  * Deduce si la familia declaró proyecto de inclusión a partir del campo
@@ -177,21 +153,6 @@ function siguienteId(idsExistentes) {
   return 'A-' + relleno;
 }
 
-// ───────────────────────────────────────────────────────────────────
-// Acceso a planillas
-// ───────────────────────────────────────────────────────────────────
-
-/** Lee una solapa entera como { encabezados, filas }. */
-function leerHoja_(hoja) {
-  var valores = hoja.getDataRange().getValues();
-  if (valores.length === 0) return { encabezados: [], filas: [] };
-  return {
-    encabezados: valores[0].map(function (e) {
-      return (e === null || e === undefined) ? '' : e.toString().trim();
-    }),
-    filas: valores.slice(1)
-  };
-}
 
 /**
  * Importa las solicitudes nuevas de los 3 niveles.
@@ -314,26 +275,6 @@ function importarDesdeSitio() {
   }
 }
 
-/**
- * Agrega un evento al log. Nunca lanza: perder un evento es malo, pero que
- * una falla de log haga fallar el envío de un mail o una importación es peor.
- */
-function registrarEvento(evento) {
-  try {
-    var hoja = SpreadsheetApp.getActive().getSheetByName(HOJAS.EVENTOS);
-    if (!hoja) return;
-
-    var fila = COLUMNAS_EVENTOS.map(function (c) {
-      if (c === 'id') return Utilities.getUuid();
-      if (c === 'timestamp') return evento.timestamp || new Date().toISOString();
-      var v = evento[c];
-      return (v === undefined || v === null) ? '' : v;
-    });
-    hoja.appendRow(fila);
-  } catch (err) {
-    console.error('No se pudo registrar el evento: ' + err);
-  }
-}
 
 /** Instala el trigger que importa cada 15 minutos. Ejecutar UNA VEZ. */
 function instalarTriggerIngesta() {
@@ -351,8 +292,6 @@ function instalarTriggerIngesta() {
 
 if (typeof module !== 'undefined' && module.exports) {
   Object.assign(module.exports, {
-    normalizarFecha: normalizarFecha,
-    normalizarParaComparar: normalizarParaComparar,
     derivarInclusion: derivarInclusion,
     calcularHuella: calcularHuella,
     mapearFilaSitio: mapearFilaSitio,

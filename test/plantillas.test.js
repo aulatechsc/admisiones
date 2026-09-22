@@ -11,7 +11,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { cargar } = require('./helpers');
 
-const P = cargar('config.gs', 'plantillas.gs');
+const P = cargar('util.gs', 'config.gs', 'plantillas.gs');
 
 // ───────────────────────────────────────────────────────────────────
 // Normalización de booleanos
