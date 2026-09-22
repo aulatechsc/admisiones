@@ -1,0 +1,115 @@
+/**
+ * Setup de la planilla única de Admisiones.
+ *
+ * Crea las 5 solapas con sus encabezados y carga los datos iniciales
+ * (estados, plantillas, primer usuario). Ejecutar UNA VEZ desde el editor.
+ *
+ * Es seguro correrlo de nuevo: no pisa solapas que ya tengan datos.
+ */
+
+/**
+ * Punto de entrada. Elegilo en el desplegable del editor y tocá Ejecutar.
+ *
+ * Después de correrlo:
+ *   1. Revisá la solapa `Usuarios` y agregá al equipo de cada nivel.
+ *   2. Corré `importarDesdeSitio()` una vez a mano para traer lo que ya hay.
+ *   3. Corré `instalarTriggerIngesta()` para que importe cada 15 minutos.
+ */
+function setup() {
+  var ss = SpreadsheetApp.getActive();
+  var hecho = [];
+
+  hecho.push(crearHoja_(ss, HOJAS.ADMISIONES, COLUMNAS_ADMISIONES));
+  hecho.push(crearHoja_(ss, HOJAS.EVENTOS, COLUMNAS_EVENTOS));
+  hecho.push(crearHoja_(ss, HOJAS.USUARIOS, COLUMNAS_USUARIOS));
+  hecho.push(crearHoja_(ss, HOJAS.ESTADOS, COLUMNAS_ESTADOS));
+  hecho.push(crearHoja_(ss, HOJA_PLANTILLAS, COLUMNAS_PLANTILLAS));
+
+  cargarEstados_(ss);
+  cargarPlantillas_(ss);
+  cargarPrimerUsuario_(ss);
+  limpiarHojaPorDefecto_(ss);
+
+  var resumen = hecho.join('\n');
+  console.log(resumen);
+  return resumen;
+}
+
+/**
+ * Crea la solapa con sus encabezados si no existe.
+ * Si ya tiene datos la deja como está: correr setup() dos veces no puede
+ * borrar admisiones cargadas.
+ */
+function crearHoja_(ss, nombre, columnas) {
+  var hoja = ss.getSheetByName(nombre);
+
+  if (hoja && hoja.getLastRow() > 1) {
+    return nombre + ': ya tenía datos, no se tocó.';
+  }
+
+  if (!hoja) hoja = ss.insertSheet(nombre);
+
+  hoja.getRange(1, 1, 1, columnas.length)
+    .setValues([columnas])
+    .setFontWeight('bold')
+    .setBackground('#ddeef5')
+    .setFontColor('#00476c');
+
+  hoja.setFrozenRows(1);
+  if (hoja.getMaxColumns() > columnas.length) {
+    hoja.deleteColumns(columnas.length + 1, hoja.getMaxColumns() - columnas.length);
+  }
+  hoja.autoResizeColumns(1, columnas.length);
+
+  return nombre + ': creada con ' + columnas.length + ' columnas.';
+}
+
+function cargarEstados_(ss) {
+  var hoja = ss.getSheetByName(HOJAS.ESTADOS);
+  if (hoja.getLastRow() > 1) return;
+
+  var filas = ESTADOS_INICIALES.map(function (e) {
+    return COLUMNAS_ESTADOS.map(function (c) { return e[c]; });
+  });
+  hoja.getRange(2, 1, filas.length, COLUMNAS_ESTADOS.length).setValues(filas);
+
+  // Pinta cada fila con el color del estado, para que la planilla se lea
+  // igual que el sitio.
+  ESTADOS_INICIALES.forEach(function (e, i) {
+    hoja.getRange(i + 2, 1, 1, COLUMNAS_ESTADOS.length).setBackground(e.color);
+  });
+}
+
+function cargarPlantillas_(ss) {
+  var hoja = ss.getSheetByName(HOJA_PLANTILLAS);
+  if (hoja.getLastRow() > 1) return;
+
+  var filas = PLANTILLAS_INICIALES.map(function (p) {
+    return COLUMNAS_PLANTILLAS.map(function (c) { return p[c]; });
+  });
+  hoja.getRange(2, 1, filas.length, COLUMNAS_PLANTILLAS.length).setValues(filas);
+
+  hoja.setColumnWidth(COLUMNAS_PLANTILLAS.indexOf('asunto') + 1, 300);
+  hoja.setColumnWidth(COLUMNAS_PLANTILLAS.indexOf('cuerpo') + 1, 600);
+}
+
+/**
+ * Deja cargado a quien corre el setup, con rol admin sobre los 3 niveles.
+ * Sin esto, nadie podría entrar al sitio: la solapa arrancaría vacía y el
+ * login por cuenta Google rechazaría a todos, incluido quien lo instaló.
+ */
+function cargarPrimerUsuario_(ss) {
+  var hoja = ss.getSheetByName(HOJAS.USUARIOS);
+  if (hoja.getLastRow() > 1) return;
+
+  var email = Session.getEffectiveUser().getEmail();
+  hoja.appendRow([email, email, NIVELES.join(','), 'admin', true]);
+}
+
+/** Saca la "Hoja 1" vacía que trae toda planilla nueva. */
+function limpiarHojaPorDefecto_(ss) {
+  var def = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1') || ss.getSheetByName('Hoja1');
+  if (def && def.getLastRow() === 0 && ss.getSheets().length > 1) {
+    ss.deleteSheet(def);
+  }
+}

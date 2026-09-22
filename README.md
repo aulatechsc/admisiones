@@ -14,19 +14,39 @@ con las familias, enviar las respuestas desde plantillas y generar la ficha PDF.
 
 ## Por dónde empezar
 
-Leer **[`docs/esquema-unificado.md`](docs/esquema-unificado.md)**: tiene el
-relevamiento de las 4 planillas, el esquema propuesto, los problemas
-detectados en los scripts actuales y las decisiones que faltan tomar.
+- **[`docs/instalacion.md`](docs/instalacion.md)** — cómo dejar andando la
+  planilla nueva. Son 10 minutos y no toca nada de lo que hoy funciona.
+- **[`docs/esquema-unificado.md`](docs/esquema-unificado.md)** — relevamiento
+  de las 4 planillas, esquema, problemas detectados y decisiones.
+
+## Estado actual
+
+Lo que hay andando:
+
+- Setup de la planilla única con sus 5 solapas
+- Ingesta idempotente desde la planilla del sitio
+- Motor de plantillas de mail, editable sin tocar código
+
+Lo que falta:
+
+- El sitio web (login por cuenta Google, listado, ficha, timeline)
+- Conectar el envío de mails y el registro del hilo de Gmail
+- Migrar el histórico de las tres planillas de nivel
 
 ## Estructura
 
     docs/
       esquema-unificado.md    Relevamiento y diseño del modelo de datos
+      instalacion.md          Puesta en marcha paso a paso
     apps-script/
+      config.gs               Esquema de solapas y mapeo desde el sitio
+      setup.gs                Crea la planilla única
+      ingesta.gs              Importa solicitudes desde la planilla del sitio
       plantillas.gs           Motor de plantillas de mail
       legacy/                 Copia de los scripts hoy en producción
     test/
-      plantillas.test.js      Tests, incluida regresión contra los scripts actuales
+      plantillas.test.js      Plantillas, con regresión contra los scripts actuales
+      ingesta.test.js         Mapeo, huellas e integridad del esquema
 
 ## Tests
 

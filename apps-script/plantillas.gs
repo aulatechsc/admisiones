@@ -456,7 +456,7 @@ var PLANTILLAS_INICIALES = [
 // Permite testear las funciones puras con node. Apps Script ignora esta línea
 // porque `module` no existe en su runtime.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
+  Object.assign(module.exports, {
     aBooleano: aBooleano,
     aNumero: aNumero,
     evaluarCondicion: evaluarCondicion,
@@ -464,5 +464,5 @@ if (typeof module !== 'undefined' && module.exports) {
     renderizar: renderizar,
     renderizarPlantilla: renderizarPlantilla,
     PLANTILLAS_INICIALES: PLANTILLAS_INICIALES
-  };
+  });
 }

@@ -2,33 +2,16 @@
  * Tests de las funciones puras de apps-script/plantillas.gs.
  *
  * Apps Script no tiene runner de tests, pero la selección de plantilla y el
- * renderizado son JavaScript plano y no tocan SpreadsheetApp. El archivo se
- * carga a mano porque node no resuelve la extensión .gs.
+ * renderizado son JavaScript plano y no tocan SpreadsheetApp.
  *
- *     node --test
+ *     npm test
  */
 
 const { test } = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
+const { cargar } = require('./helpers');
 
-/**
- * Compila el .gs con `new Function` en vez de `vm.runInNewContext`.
- *
- * vm crea un realm aparte, con sus propios Array y Object. Los valores que
- * devuelve el módulo tienen entonces otro prototipo, y deepStrictEqual los
- * rechaza aunque el contenido sea idéntico. `new Function` compila en este
- * mismo realm y evita el problema.
- */
-function cargar(archivo) {
-  const codigo = fs.readFileSync(path.join(__dirname, '..', 'apps-script', archivo), 'utf8');
-  const modulo = { exports: {} };
-  new Function('module', 'exports', 'console', codigo)(modulo, modulo.exports, console);
-  return modulo.exports;
-}
-
-const P = cargar('plantillas.gs');
+const P = cargar('config.gs', 'plantillas.gs');
 
 // ───────────────────────────────────────────────────────────────────
 // Normalización de booleanos
