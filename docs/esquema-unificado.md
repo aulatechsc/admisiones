@@ -154,7 +154,12 @@ todo el intercambio".
 
     id_admision | timestamp | tipo | usuario | asunto | cuerpo | thread_id | message_id
 
-`tipo`: `mail_enviado` | `mail_recibido` | `cambio_estado` | `nota` | `pdf_generado`
+`tipo`: `mail_enviado` | `mail_recibido` | `llamada` | `cambio_estado` | `nota` |
+`pdf_generado`
+
+`llamada` no es opcional: Secundaria hace el primer contacto por teléfono, así
+que sin ese tipo de evento su recorrido queda vacío y el sistema no sirve para
+ese nivel.
 
 ### `Usuarios`
 
@@ -176,16 +181,16 @@ cada dirección edite sus propios textos sin tocar el script. Placeholders:
 
 Catálogo del pipeline con orden y color, para no hardcodearlo en el front.
 
-## 6. Bloqueante operativo: el buzón
+## 6. El buzón (resuelto)
 
 Para registrar las respuestas de las familias hace falta que el script pueda
 **leerlas**. Hoy Inicial envía con `replyTo: elianawaichman@`, así que las
 respuestas llegan a una casilla personal que el script no ve.
 
-Hace falta un buzón compartido — `admisiones@sancarlos.edu.ar` — que sea a la
-vez remitente y destino de las respuestas, con el proyecto de Apps Script
-corriendo desde ahí. Es una gestión de IT, no de código, y conviene arrancarla
-en paralelo porque bloquea el requisito de registrar el intercambio.
+**Decidido**: todo se gestiona desde `aulatech@sancarlos.edu.ar`, que pasa a
+ser remitente y destino de las respuestas, con el proyecto de Apps Script
+corriendo desde ahí. Ver la sección 8 para el alias de remitente y el costo
+operativo de cambiar el `replyTo`.
 
 Detalle técnico: `GmailApp.sendEmail()` no devuelve el hilo. Para guardar
 `thread_id` hay que usar el servicio avanzado de Gmail
@@ -205,12 +210,54 @@ forma confiable de atar un hilo a una admisión.
 
 Los pasos 3 y 4 concentran el riesgo. El 5 y 6 son trabajo mecánico.
 
-## 8. Decisiones abiertas
+## 8. Decisiones tomadas
 
+Definidas por el equipo el 2026-09-22.
+
+- **Todo se gestiona desde `aulatech@sancarlos.edu.ar`.** Resuelve de una vez
+  el dueño de la planilla única y el buzón desde el que se envía y se leen las
+  respuestas. Ver la nota sobre el remitente más abajo.
+- **El formulario de Google está inhabilitado.** Las solicitudes entran sólo
+  por el formulario del sitio. Las solapas de respuestas del Form quedan como
+  histórico de lectura, no como origen activo.
+- **Secundaria contacta por teléfono**, no por mail. Por eso no tiene script
+  de envío ni plantillas. El sistema necesita registrar llamadas como un tipo
+  de evento más (`llamada`), con quién llamó, cuándo y qué se habló — si no,
+  el recorrido de Secundaria queda vacío.
+- **Las plantillas se editan desde el sitio.** Implementado en
+  `apps-script/plantillas.gs`.
+- **El histórico se migra.** (Alcance exacto pendiente de confirmar.)
+
+### Nota sobre el remitente
+
+`aulatech@` es una cuenta técnica: si envía sin configurar, las familias
+reciben un mail de "aulatech", que no dice nada institucional. Se resuelve con
+el parámetro `name` de `GmailApp.sendEmail`, como ya hace hoy el script de
+Inicial:
+
+    name: 'Admisiones - Colegio San Carlos Diálogos'
+
+Conviene además crear el alias `admisiones@sancarlos.edu.ar` sobre esa misma
+casilla, para que la dirección visible acompañe al nombre.
+
+### El `replyTo` tiene un costo operativo
+
+Hoy Inicial usa `replyTo: elianawaichman@`, así que las respuestas van directo
+a la casilla de la directora. Para que el sistema pueda registrarlas, el
+`replyTo` tiene que apuntar al buzón que el script lee.
+
+Eso significa que **Eliana y Rocío dejan de recibir las respuestas en su
+bandeja** y pasan a verlas en el sitio. Es exactamente lo que se pidió —
+registrar el intercambio — pero es un cambio de hábito, no sólo un cambio
+técnico. Para que no se sienta como una pérdida, el sistema debería avisarles
+por mail cuando entra una respuesta nueva, con el link directo a la ficha.
+
+Conviene acordarlo con ellas antes de cambiarlo.
+
+## 9. Decisiones abiertas
+
+- **Alcance del histórico**: se migra, pero falta definir hasta dónde.
 - **Deduplicación**: el mismo alumno puede estar en la solapa del Form y en la
   operativa, y un postulante rechazado un año puede reaparecer al siguiente.
   ¿Clave `alumno + anio_vacante`, o `alumno` con historial de postulaciones?
-- **Formulario de Google**: ¿se apaga y queda sólo el del sitio, o conviven?
 - **`#REF!` de Secundaria**: ¿se recuperan las columnas `Inicial` / `Primaria`?
-- **Secundaria**: ¿cómo envía hoy los mails? ¿Qué significa `Mail a enviar`?
-- **Histórico**: ¿se migra todo, o sólo de cierto ciclo lectivo en adelante?

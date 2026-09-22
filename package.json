@@ -1,0 +1,9 @@
+{
+  "name": "admisiones",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema de admisiones - Colegio San Carlos Dialogos",
+  "scripts": {
+    "test": "node --test"
+  }
+}

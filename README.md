@@ -23,7 +23,18 @@ detectados en los scripts actuales y las decisiones que faltan tomar.
     docs/
       esquema-unificado.md    Relevamiento y diseño del modelo de datos
     apps-script/
+      plantillas.gs           Motor de plantillas de mail
       legacy/                 Copia de los scripts hoy en producción
+    test/
+      plantillas.test.js      Tests, incluida regresión contra los scripts actuales
+
+## Tests
+
+    npm test
+
+Las funciones puras de `plantillas.gs` no tocan SpreadsheetApp y corren con el
+runner de node. Los tests de regresión verifican que las plantillas migradas
+producen exactamente el mismo texto que los scripts hoy en producción.
 
 ## Nota sobre datos personales
 
