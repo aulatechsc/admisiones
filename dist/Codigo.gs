@@ -328,6 +328,15 @@ var ESTADOS_INICIALES = [
 var ESTADO_INICIAL = 'nueva';
 
 /**
+ * Hasta qué `orden` llega el recorrido de la admisión.
+ *
+ * Los estados de arriba (lista de espera, sin vacante, desistió) no son la
+ * etapa siguiente de nada: son salidas del recorrido. El sitio los dibuja
+ * aparte del checkpoint por esta misma razón y usa el mismo número.
+ */
+var ORDEN_MAXIMO_FLUJO = 60;
+
+/**
  * Mapeo de la planilla del sitio al esquema unificado.
  *
  * Las claves son los encabezados exactos de cada solapa de "Admisiones -
@@ -1014,13 +1023,39 @@ function actualizarAdmision(id, cambios) {
 /** Estados de los que no se vuelve: cierran el proceso. */
 var ESTADOS_TERMINALES = ['matriculada', 'sin_vacante', 'desistio'];
 
+/** ¿Ese estado es una etapa del recorrido, o una salida de él? */
+function enElFlujo_(estados, id) {
+  for (var i = 0; i < estados.length; i++) {
+    if (estados[i].id === id) return Number(estados[i].orden) <= ORDEN_MAXIMO_FLUJO;
+  }
+  return false;
+}
+
+/**
+ * Qué hacer con `estado_previo` al pasar de un estado a otro.
+ *
+ * Devuelve el valor a escribir, o null para dejarlo como está. Está separado
+ * de cambiarEstado() porque es la única parte de la decisión que no toca la
+ * planilla, y es la que conviene tener clavada con tests.
+ */
+function previoAlCambiar_(estados, anterior, nuevo) {
+  var sale = !enElFlujo_(estados, nuevo) || ESTADOS_TERMINALES.indexOf(nuevo) !== -1;
+
+  if (!sale) return '';                               // volvió al recorrido
+  if (enElFlujo_(estados, anterior)) return anterior;  // salió desde una etapa
+  return null;                                         // desvío → desvío: se conserva
+}
+
 /**
  * Cambia el estado y lo deja asentado en Eventos.
  *
- * Al pasar a un estado terminal guarda de dónde venía en `estado_previo`:
- * saber que una familia desistió sirve poco, saber que desistió *después de
- * la entrevista* dice algo muy distinto que si desistió sin que la
- * contactaran.
+ * Al salir del recorrido guarda de dónde venía en `estado_previo`: saber que
+ * una familia desistió sirve poco, saber que desistió *después de la
+ * entrevista* dice algo muy distinto que si desistió sin que la contactaran.
+ *
+ * Vale igual para lista de espera, que no cierra nada pero interrumpe el
+ * recorrido: sin el dato, la tarjeta de esa familia queda sin recorrido que
+ * mostrar y al retomarla no se sabe en qué punto estaba.
  */
 function cambiarEstado(id, nuevoEstado, nota) {
   var estados = leerEstados();
@@ -1032,12 +1067,9 @@ function cambiarEstado(id, nuevoEstado, nota) {
   if (antes.estado === nuevoEstado) return antes;
 
   var cambios = { estado: nuevoEstado };
-  if (ESTADOS_TERMINALES.indexOf(nuevoEstado) !== -1) {
-    cambios.estado_previo = antes.estado;
-  } else {
-    // Al salir de un estado terminal el dato deja de tener sentido.
-    cambios.estado_previo = '';
-  }
+  var previo = previoAlCambiar_(estados, antes.estado, nuevoEstado);
+  if (previo !== null) cambios.estado_previo = previo;
+
   actualizarAdmision(id, cambios);
 
   registrarEvento({
@@ -1104,8 +1136,10 @@ function deshacerCambioEstado(idEvento) {
 
   var admision = obtenerAdmision(evento.id_admision);
   if (admision) {
+    // Volver a una etapa del recorrido borra el previo; volver a un desvío
+    // lo deja como estaba, que es de donde salió.
     var cambios = { estado: estadoAnterior };
-    if (ESTADOS_TERMINALES.indexOf(estadoAnterior) === -1) cambios.estado_previo = '';
+    if (previoAlCambiar_(estados, '', estadoAnterior) === '') cambios.estado_previo = '';
     actualizarAdmision(evento.id_admision, cambios);
   }
 

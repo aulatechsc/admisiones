@@ -368,20 +368,13 @@ test('el sitio sólo ofrece la cruz en cambios de estado', () => {
 // Dónde se cortó el proceso
 // ───────────────────────────────────────────────────────────────────
 
-test('al cerrar una admisión se guarda de qué etapa venía', () => {
-  // Que una familia haya desistido dice poco; que haya desistido después de
-  // la entrevista dice algo muy distinto que si desistió sin que la
-  // contactaran.
+test('cambiarEstado decide la etapa previa con previoAlCambiar_', () => {
+  // La regla en sí se prueba aparte, sobre la función pura. Acá alcanza con
+  // que cambiarEstado no vuelva a decidirlo por su cuenta.
   const cuerpo = DATOS.slice(DATOS.indexOf('function cambiarEstado'),
                              DATOS.indexOf('function deshacerCambioEstado'));
-  assert.ok(cuerpo.includes('ESTADOS_TERMINALES'), 'no distingue estados terminales');
-  assert.ok(cuerpo.includes('cambios.estado_previo = antes.estado'), 'no guarda la etapa previa');
-});
-
-test('al reabrir una admisión se limpia la etapa previa', () => {
-  const cuerpo = DATOS.slice(DATOS.indexOf('function cambiarEstado'),
-                             DATOS.indexOf('function deshacerCambioEstado'));
-  assert.ok(/cambios\.estado_previo = ''/.test(cuerpo), 'deja el dato viejo al reabrir');
+  assert.ok(cuerpo.includes('previoAlCambiar_('), 'no usa la decisión compartida');
+  assert.ok(cuerpo.includes('cambios.estado_previo = previo'), 'no guarda lo que decidió');
 });
 
 test('estado_previo es columna de Admisiones', () => {
@@ -474,6 +467,87 @@ test('el menú de estado separa el flujo de los desvíos', () => {
 });
 
 // ───────────────────────────────────────────────────────────────────
+// El recorrido, visible desde la lista
+// ───────────────────────────────────────────────────────────────────
+
+const ESTADOS_STUB = [
+  { id: 'nueva', nombre: 'Nueva', orden: 10 },
+  { id: 'contactada', nombre: 'Contactada', orden: 20 },
+  { id: 'entrevista_agendada', nombre: 'Entrevista agendada', orden: 30 },
+  { id: 'entrevista_hecha', nombre: 'Entrevista realizada', orden: 40 },
+  { id: 'visita', nombre: 'Visita', orden: 50 },
+  { id: 'matriculada', nombre: 'Matriculada', orden: 60 },
+  { id: 'lista_espera', nombre: 'Lista de espera', orden: 70 },
+  { id: 'sin_vacante', nombre: 'Sin vacante', orden: 80 },
+  { id: 'desistio', nombre: 'Desistió', orden: 90 }
+];
+
+/** miniPasos se apoya en globals del sitio; acá se los pasamos a mano. */
+function miniPasosDelSitio() {
+  const ctx = {};
+  new Function('ctx', 'estados', 'esc', 'ORDEN_MAXIMO_FLUJO',
+    extraerFuncion('miniPasos') + '\n;ctx.f = miniPasos;'
+  )(ctx, ESTADOS_STUB, (x) => String(x === null || x === undefined ? '' : x), 60);
+  return ctx.f;
+}
+
+/** Los estados de los puntos, en orden, como los deja el HTML. */
+function clasesDePasos(html) {
+  return (html.match(/class="mini-paso [^"]*"/g) || []).map((c) =>
+    c.replace('class="mini-paso ', '').replace(/ ?ultimo/, '').replace('"', '').trim());
+}
+
+test('la tarjeta dibuja el recorrido de la admisión', () => {
+  // El pedido era ver el proceso sin abrir la ficha: el stepper del panel,
+  // en chico, dentro de cada tarjeta.
+  assert.ok(HTML.includes('miniPasos(a)'), 'la tarjeta no dibuja el recorrido');
+  assert.ok(HTML.includes('function miniPasos('), 'falta miniPasos');
+});
+
+test('el recorrido marca lo hecho, lo actual y lo que falta', () => {
+  const miniPasos = miniPasosDelSitio();
+  const html = miniPasos({ id: '1', estado: 'entrevista_agendada', alumno_nombre: 'A' });
+
+  assert.deepStrictEqual(clasesDePasos(html),
+    ['hecho', 'hecho', 'actual', '', '', '']);
+});
+
+test('el recorrido no dibuja los desvíos como pasos', () => {
+  // Lista de espera, sin vacante y desistió no son etapas por las que haya
+  // que pasar: como puntos de la secuencia darían a entender lo contrario.
+  const miniPasos = miniPasosDelSitio();
+  const html = miniPasos({ id: '1', estado: 'nueva', alumno_nombre: 'A' });
+
+  assert.strictEqual(clasesDePasos(html).length, 6, 'hay más puntos que etapas del flujo');
+  assert.ok(!html.includes('data-paso-a="desistio"'));
+  assert.ok(!html.includes('data-paso-a="lista_espera"'));
+});
+
+test('en un desvío el recorrido muestra hasta dónde había llegado', () => {
+  // Es lo que se necesita para el informe: en qué parte del proceso desistió.
+  const miniPasos = miniPasosDelSitio();
+  const html = miniPasos({
+    id: '1', estado: 'desistio', estado_previo: 'entrevista_hecha', alumno_nombre: 'A'
+  });
+
+  assert.deepStrictEqual(clasesDePasos(html),
+    ['hecho', 'hecho', 'hecho', 'hecho', '', ''],
+    'no se ve hasta dónde llegó antes de desistir');
+  assert.ok(html.includes('Desistió'), 'no se nombra el desvío');
+});
+
+test('un punto del recorrido pide confirmación antes de cambiar el estado', () => {
+  // Los puntos son chicos y están pegados; el error se registra en Eventos y
+  // le cambia el color a la tarjeta.
+  assert.ok(HTML.includes('function abrirPasoRapido('), 'falta la confirmación');
+
+  const f = HTML.slice(HTML.indexOf('function abrirPasoRapido('));
+  const hasta = f.indexOf('\n/**');
+  assert.ok(f.slice(0, hasta).includes('notaPasoRapido'), 'no pide nota');
+  assert.ok(f.slice(0, hasta).includes('nota: nota'), 'la nota no se manda al backend');
+});
+
+// ───────────────────────────────────────────────────────────────────
 // Claro / oscuro
 // ───────────────────────────────────────────────────────────────────
 
@@ -522,4 +596,47 @@ test('la ficha se comparte con el dominio, no con internet', () => {
   const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
   assert.ok(ficha.includes('DOMAIN_WITH_LINK'), 'no se comparte con el dominio');
   assert.ok(!ficha.includes('Access.ANYONE'), 'la ficha queda pública en internet');
+});
+
+// ───────────────────────────────────────────────────────────────────
+// De dónde venía: `estado_previo`
+// ───────────────────────────────────────────────────────────────────
+
+const BACKEND = cargar('util.gs', 'config.gs', 'datos.gs');
+const previoAlCambiar_ = BACKEND.previoAlCambiar_;
+const ESTADOS = BACKEND.ESTADOS_INICIALES;
+
+test('salir del recorrido guarda desde qué etapa se salió', () => {
+  // Saber que una familia desistió sirve poco; saber que desistió después de
+  // la entrevista dice algo muy distinto.
+  assert.strictEqual(
+    previoAlCambiar_(ESTADOS, 'entrevista_hecha', 'desistio'), 'entrevista_hecha');
+  assert.strictEqual(
+    previoAlCambiar_(ESTADOS, 'visita', 'sin_vacante'), 'visita');
+});
+
+test('lista de espera también guarda de dónde venía', () => {
+  // No cierra nada, pero interrumpe el recorrido igual: sin el dato la
+  // tarjeta queda sin recorrido que mostrar y al retomarla no se sabe dónde
+  // estaba la familia.
+  assert.strictEqual(
+    previoAlCambiar_(ESTADOS, 'contactada', 'lista_espera'), 'contactada');
+});
+
+test('de un desvío a otro se conserva el punto del recorrido', () => {
+  // Lista de espera → sin vacante: guardar "lista_espera" como previo perdería
+  // el único dato útil, que es hasta dónde había llegado la familia.
+  assert.strictEqual(
+    previoAlCambiar_(ESTADOS, 'lista_espera', 'sin_vacante'), null);
+});
+
+test('volver al recorrido borra el previo', () => {
+  assert.strictEqual(
+    previoAlCambiar_(ESTADOS, 'lista_espera', 'entrevista_agendada'), '');
+  assert.strictEqual(
+    previoAlCambiar_(ESTADOS, 'nueva', 'contactada'), '');
+});
+
+test('matricularse guarda la etapa anterior, no se borra', () => {
+  assert.strictEqual(previoAlCambiar_(ESTADOS, 'visita', 'matriculada'), 'visita');
 });

@@ -122,6 +122,15 @@ var ESTADOS_INICIALES = [
 var ESTADO_INICIAL = 'nueva';
 
 /**
+ * Hasta qué `orden` llega el recorrido de la admisión.
+ *
+ * Los estados de arriba (lista de espera, sin vacante, desistió) no son la
+ * etapa siguiente de nada: son salidas del recorrido. El sitio los dibuja
+ * aparte del checkpoint por esta misma razón y usa el mismo número.
+ */
+var ORDEN_MAXIMO_FLUJO = 60;
+
+/**
  * Mapeo de la planilla del sitio al esquema unificado.
  *
  * Las claves son los encabezados exactos de cada solapa de "Admisiones -
@@ -264,6 +273,7 @@ if (typeof module !== 'undefined' && module.exports) {
     TIPOS_EVENTO: TIPOS_EVENTO,
     ESTADOS_INICIALES: ESTADOS_INICIALES,
     ESTADO_INICIAL: ESTADO_INICIAL,
+    ORDEN_MAXIMO_FLUJO: ORDEN_MAXIMO_FLUJO,
     MAPEO_SITIO: MAPEO_SITIO,
     CAMPOS_BOOLEANOS: CAMPOS_BOOLEANOS,
     CAMPOS_FECHA_CORTA: CAMPOS_FECHA_CORTA,

@@ -221,11 +221,12 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
 .grilla { display: grid; gap: 9px; }
 .tarjeta {
   background: var(--superficie); border: 1px solid var(--linea);
-  border-radius: var(--r-l); padding: 14px 16px;
+  border-radius: var(--r-l); padding: 12px 15px;
   cursor: pointer; transition: var(--transicion);
-  display: flex; align-items: center; gap: 14px;
-  box-shadow: var(--sombra-1);
+  display: block; box-shadow: var(--sombra-1);
 }
+.tarjeta .arriba { display: flex; align-items: center; gap: 12px; }
+.tarjeta .derecha { display: flex; align-items: center; gap: 7px; flex: none; }
 .tarjeta:hover {
   border-color: var(--linea-fuerte); box-shadow: var(--sombra-2);
   transform: translateY(-1px);
@@ -263,6 +264,68 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
 .tarjeta.s-amarillo { border-left-color: var(--ambar); }
 .tarjeta.s-rojo     { border-left-color: var(--rojo); }
 .tarjeta.s-gris     { border-left-color: var(--linea-fuerte); }
+
+/* Recorrido dentro de la tarjeta: las mismas etapas del panel, en chico.
+   Sin rótulos, que en una lista de cincuenta filas serían ilegibles: el
+   nombre va en el tooltip y en el popover al tocar. */
+.mini-pasos {
+  display: flex; align-items: center; margin-top: 9px;
+  padding-top: 9px; border-top: 1px solid var(--linea);
+  gap: 0; flex-wrap: nowrap; overflow-x: auto;
+}
+.mini-paso {
+  position: relative; flex: none; padding: 0; border: none; background: none;
+  width: 30px; height: 20px; cursor: pointer; display: grid; place-items: center;
+}
+.mini-paso::before {
+  content: ''; position: absolute; left: 0; right: 50%; top: 50%;
+  height: 2px; background: var(--linea); transform: translateY(-50%);
+}
+.mini-paso::after {
+  content: ''; position: absolute; left: 50%; right: 0; top: 50%;
+  height: 2px; background: var(--linea); transform: translateY(-50%);
+}
+.mini-paso:first-child::before, .mini-paso.ultimo::after { display: none; }
+
+.mini-paso i {
+  position: relative; z-index: 1; display: block;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--superficie); border: 2px solid var(--linea-fuerte);
+  transition: var(--transicion);
+}
+.mini-paso.hecho::before, .mini-paso.hecho::after { background: var(--verde); }
+.mini-paso.hecho i { background: var(--verde); border-color: var(--verde); }
+.mini-paso.actual::before { background: var(--verde); }
+.mini-paso.actual i {
+  background: var(--marca); border-color: var(--marca);
+  width: 14px; height: 14px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 22%, transparent);
+}
+.mini-paso:hover i { border-color: var(--marca); }
+
+.mini-mas {
+  flex: none; margin-left: 10px; padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--linea-fuerte); background: var(--superficie);
+  color: var(--texto-suave); font-size: 12px; font-weight: 600; line-height: 1.5;
+}
+.mini-mas:hover { color: var(--marca); border-color: var(--marca); }
+.mini-mas.marcada { border-color: currentColor; font-weight: 650; }
+
+/* Confirmación al tocar un paso: el destino y la nota, en el mismo lugar */
+.popover {
+  position: absolute; z-index: 70; width: 260px;
+  background: var(--superficie); border: 1px solid var(--linea-fuerte);
+  border-radius: var(--r-l); box-shadow: var(--sombra-3); padding: 12px;
+}
+.popover .destino { font-size: 13.5px; font-weight: 600; margin-bottom: 9px; }
+.popover .destino small { display: block; font-weight: 400; color: var(--texto-suave); font-size: 12px; }
+.popover input {
+  width: 100%; padding: 7px 9px; font: inherit; font-size: 13px;
+  border: 1px solid var(--linea-fuerte); border-radius: var(--r-s);
+  background: var(--superficie-alta); color: var(--texto); margin-bottom: 9px;
+}
+.popover .botones { display: flex; gap: 7px; }
+.popover .botones button { flex: 1; padding: 6px 10px; font-size: 13px; }
 
 /* Acciones desde la lista, sin abrir la ficha */
 .acciones-fila { display: flex; gap: 5px; flex: none; }
@@ -552,6 +615,12 @@ code {
   .panel { width: 100vw; }
   .acciones-barra { width: 100%; margin-left: 0; }
   .acciones-barra button { flex: 1; }
+
+  /* En el celular el nombre se queda con el ancho y el resto baja: apretados
+     en la misma línea, el nombre del alumno queda cortado a tres letras. */
+  .tarjeta .arriba { flex-wrap: wrap; }
+  .tarjeta .derecha { width: 100%; justify-content: flex-start; }
+  .popover { width: calc(100vw - 28px); max-width: 300px; }
 }
 </style>
 </head>
@@ -829,30 +898,31 @@ function pintarLista() {
 
   lista.innerHTML = '<div class="grilla">' + admisiones.map(function (a) {
     return '<article class="tarjeta s-' + colorSituacion(a) + '" data-id="' + esc(a.id) + '" tabindex="0">' +
-      '<div class="principal">' +
-        '<div class="meta" style="margin:0 0 3px">' +
-          '<span>' + esc(fechaCorta(a.fecha_alta)) + '</span>' +
-          '<span class="nivel n-' + esc(a.nivel) + '">' + esc(a.nivel) + '</span>' +
-          (esVerdadero(a.inclusion_solicitada)
-            ? '<span class="marca-inclusion">inclusión</span>' : '') +
+      '<div class="arriba">' +
+        '<div class="principal">' +
+          '<div class="meta" style="margin:0 0 3px">' +
+            '<span>' + esc(fechaCorta(a.fecha_alta)) + '</span>' +
+            '<span class="nivel n-' + esc(a.nivel) + '">' + esc(a.nivel) + '</span>' +
+            (esVerdadero(a.inclusion_solicitada)
+              ? '<span class="marca-inclusion">inclusión</span>' : '') +
+          '</div>' +
+          '<div class="nombre">' + esc(a.alumno_nombre) +
+            '<span style="font-weight:400;color:var(--texto-suave)"> — ' +
+              esc(a.grado_solicitado || '—') + ' — ' + esc(a.anio_vacante || '—') + '</span>' +
+          '</div>' +
         '</div>' +
-        '<div class="nombre">' + esc(a.alumno_nombre) +
-          '<span style="font-weight:400;color:var(--texto-suave)"> — ' +
-            esc(a.grado_solicitado || '—') + ' — ' + esc(a.anio_vacante || '—') + '</span>' +
+        '<div class="derecha">' +
+          textoEspera(a.espera) +
+          '<span class="estado e-' + esc(a.estado) + '">' + esc(nombreEstado(a.estado)) + '</span>' +
+          '<div class="acciones-fila">' +
+            '<button data-mail-de="' + esc(a.id) + '" title="Enviar mail">' + ICO.sobre + '</button>' +
+            (a.pdf_url
+              ? '<button data-pdf="' + esc(a.pdf_url) + '" title="Ver ficha">' + ICO.ficha + '</button>'
+              : '<button class="apagado" title="Todavía sin ficha">' + ICO.ficha + '</button>') +
+          '</div>' +
         '</div>' +
       '</div>' +
-      textoEspera(a.espera) +
-      '<button class="estado e-' + esc(a.estado) + '" data-estado-de="' + esc(a.id) + '" ' +
-        'title="Cambiar de estado">' + esc(nombreEstado(a.estado)) +
-        (a.estado_previo ? '<small style="opacity:.75;font-weight:500"> · ' +
-          esc(nombreEstado(a.estado_previo)) + '</small>' : '') +
-      '</button>' +
-      '<div class="acciones-fila">' +
-        '<button data-mail-de="' + esc(a.id) + '" title="Enviar mail">' + ICO.sobre + '</button>' +
-        (a.pdf_url
-          ? '<button data-pdf="' + esc(a.pdf_url) + '" title="Ver ficha">' + ICO.ficha + '</button>'
-          : '<button class="apagado" title="Todavía sin ficha">' + ICO.ficha + '</button>') +
-      '</div>' +
+      miniPasos(a) +
     '</article>';
   }).join('') + '</div>';
 
@@ -879,6 +949,13 @@ function pintarLista() {
     };
   });
 
+  Array.prototype.forEach.call(lista.querySelectorAll('[data-paso-a]'), function (b) {
+    b.onclick = function (ev) {
+      ev.stopPropagation();
+      abrirPasoRapido(b, b.dataset.pasoDe, b.dataset.pasoA);
+    };
+  });
+
   Array.prototype.forEach.call(lista.querySelectorAll('.tarjeta'), function (t) {
     t.onclick = function () { abrirPanel(t.dataset.id); };
     t.onkeydown = function (ev) {
@@ -893,6 +970,117 @@ var menuAbierto = null;
 
 function cerrarMenuEstado() {
   if (menuAbierto) { menuAbierto.remove(); menuAbierto = null; }
+}
+
+/**
+ * El recorrido de la admisión, dibujado dentro de la tarjeta.
+ *
+ * Es el mismo stepper del panel, sin rótulos: en una lista larga los nombres
+ * de las seis etapas no entran y, apilados, tapan lo que se vino a mirar. El
+ * nombre está en el tooltip de cada punto y arriba, en el chip de estado.
+ *
+ * Los tres desvíos (lista de espera, sin vacante, desistió) no son etapas del
+ * recorrido, así que no van como puntos: quedan detrás del botón del final,
+ * que muestra el nombre cuando la admisión está en uno de ellos.
+ */
+function miniPasos(a) {
+  var flujo = estados.filter(function (e) { return Number(e.orden) <= ORDEN_MAXIMO_FLUJO; });
+  var ramas = estados.filter(function (e) { return Number(e.orden) > ORDEN_MAXIMO_FLUJO; });
+
+  var enRama = null;
+  ramas.forEach(function (e) { if (e.id === a.estado) enRama = e; });
+
+  // En un desvío el recorrido igual importa: `estado_previo` dice hasta dónde
+  // había llegado la familia antes de desistir o quedar sin vacante, que es
+  // justo lo que hay que poder leer de un vistazo.
+  var referencia = enRama ? a.estado_previo : a.estado;
+  var hasta = -1;
+  flujo.forEach(function (e, i) { if (e.id === referencia) hasta = i; });
+
+  var puntos = flujo.map(function (e, i) {
+    var clase = enRama
+      ? (i <= hasta ? 'hecho' : '')
+      : (i < hasta ? 'hecho' : (i === hasta ? 'actual' : ''));
+    if (i === flujo.length - 1) clase += ' ultimo';
+    return '<button class="mini-paso ' + clase + '" data-paso-de="' + esc(a.id) + '" ' +
+      'data-paso-a="' + esc(e.id) + '" title="' + esc(e.nombre) + '"><i></i></button>';
+  }).join('');
+
+  return '<div class="mini-pasos">' + puntos +
+    '<button class="mini-mas' + (enRama ? ' marcada e-' + esc(enRama.id) : '') + '" ' +
+      'data-estado-de="' + esc(a.id) + '" title="Otros estados">' +
+      (enRama ? esc(enRama.nombre) : '···') +
+    '</button></div>';
+}
+
+/**
+ * Confirmación al tocar un punto del recorrido.
+ *
+ * Un solo click no alcanza: los puntos son chicos y están pegados, y el error
+ * se registra en Eventos y le cambia el color a la tarjeta. El paso extra es
+ * además donde entra la nota, que es cuando se sabe por qué.
+ */
+function abrirPasoRapido(boton, id, destino) {
+  cerrarMenuEstado();
+
+  var a = null;
+  for (var i = 0; i < admisiones.length; i++) if (admisiones[i].id === id) a = admisiones[i];
+  if (!a) return;
+  if (destino === a.estado) return;
+
+  var caja = document.createElement('div');
+  caja.className = 'popover';
+  caja.innerHTML =
+    '<div class="destino">' + esc(nombreEstado(a.estado)) + ' → ' + esc(nombreEstado(destino)) +
+      '<small>' + esc(a.alumno_nombre) + '</small></div>' +
+    '<input id="notaPasoRapido" placeholder="Nota del cambio (opcional)">' +
+    '<div class="botones">' +
+      '<button data-cancelar="1">Cancelar</button>' +
+      '<button class="primario" data-confirmar="1">Marcar</button>' +
+    '</div>';
+
+  document.body.appendChild(caja);
+  menuAbierto = caja;
+  anclarMenu(caja, boton);
+
+  caja.querySelector('[data-cancelar]').onclick = cerrarMenuEstado;
+  caja.querySelector('[data-confirmar]').onclick = function () {
+    var nota = document.getElementById('notaPasoRapido').value;
+    cerrarMenuEstado();
+    api('cambiarEstado', { id: id, estado: destino, nota: nota }).then(function (r) {
+      if (!r.ok) { flotante('Error: ' + r.error); return; }
+      cargar();
+      flotante(a.alumno_nombre + ' → ' + nombreEstado(destino));
+    });
+  };
+
+  var campo = document.getElementById('notaPasoRapido');
+  if (campo) {
+    campo.focus();
+    campo.onkeydown = function (ev) {
+      if (ev.key === 'Enter') caja.querySelector('[data-confirmar]').click();
+      if (ev.key === 'Escape') cerrarMenuEstado();
+    };
+  }
+
+  caja.onclick = function (ev) { ev.stopPropagation(); };
+  setTimeout(function () {
+    document.addEventListener('click', cerrarMenuEstado, { once: true });
+  }, 0);
+}
+
+/**
+ * Ancla un menú o popover al botón que lo abrió, corregido para no salirse
+ * de la pantalla: abajo si entra, arriba si no, y sin pasarse de los bordes.
+ */
+function anclarMenu(caja, boton) {
+  var r = boton.getBoundingClientRect();
+  var alto = caja.offsetHeight;
+  var arriba = r.bottom + 6 + alto > window.innerHeight && r.top - alto - 6 > 0;
+
+  caja.style.top = (window.scrollY + (arriba ? r.top - alto - 6 : r.bottom + 6)) + 'px';
+  caja.style.left = Math.max(10,
+    Math.min(window.scrollX + r.left, window.scrollX + window.innerWidth - caja.offsetWidth - 10)) + 'px';
 }
 
 /**
@@ -935,14 +1123,7 @@ function abrirMenuEstado(boton, id) {
   document.body.appendChild(menu);
   menuAbierto = menu;
 
-  // Anclado al botón, corregido para no salirse de la pantalla
-  var r = boton.getBoundingClientRect();
-  var alto = menu.offsetHeight;
-  var arriba = r.bottom + 6 + alto > window.innerHeight && r.top - alto - 6 > 0;
-
-  menu.style.top = (window.scrollY + (arriba ? r.top - alto - 6 : r.bottom + 6)) + 'px';
-  menu.style.left = Math.max(10,
-    Math.min(window.scrollX + r.left, window.scrollX + window.innerWidth - menu.offsetWidth - 10)) + 'px';
+  anclarMenu(menu, boton);
 
   Array.prototype.forEach.call(menu.querySelectorAll('[data-ir]'), function (b) {
     b.onclick = function () {
