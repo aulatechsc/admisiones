@@ -30,9 +30,9 @@ const MODULOS = [
   'config.gs',      // sin dependencias
   'plantillas.gs',  // util, config
   'datos.gs',       // util, config
-  'ingesta.gs',     // util, config, datos
-  'mailer.gs',      // util, config, plantillas, datos
   'fichas.gs',      // util, config, datos
+  'ingesta.gs',     // util, config, datos, fichas — genera la ficha al dar de alta
+  'mailer.gs',      // util, config, plantillas, datos
   'api.gs',         // todos
   'setup.gs'        // todos
 ];

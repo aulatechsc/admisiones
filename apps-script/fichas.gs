@@ -268,10 +268,89 @@ function generarFicha(idAdmision) {
   return { ok: true, url: archivo.getUrl(), nombre: archivo.getName() };
 }
 
+// ───────────────────────────────────────────────────────────────────
+// Generación automática
+// ───────────────────────────────────────────────────────────────────
+
+/**
+ * Cuántas fichas como mucho por ejecución, y cuánto tiempo pueden ocupar.
+ *
+ * Cada ficha crea un Doc, lo exporta a PDF y lo borra: entre 3 y 5 segundos.
+ * Apps Script corta la ejecución a los 6 minutos, así que importar 50
+ * admisiones de golpe y generarles la ficha a todas se pasaría del límite y
+ * abortaría a mitad de camino. Con tope, lo que no entra queda pendiente y
+ * sale en la corrida siguiente del trigger, 15 minutos después.
+ */
+var TOPE_FICHAS_POR_CORRIDA = 10;
+var PRESUPUESTO_MS = 90000;
+
+/**
+ * Genera las fichas que falten.
+ *
+ * Nunca lanza por una ficha suelta: si una falla, se registra y sigue con las
+ * demás. La admisión ya está guardada, y una ficha se puede regenerar a mano
+ * desde el sitio — perder la importación entera por un PDF sería peor.
+ */
+function generarFichasPendientes(ids) {
+  var pendientes;
+
+  if (ids && ids.length) {
+    pendientes = ids;
+  } else {
+    pendientes = leerAdmisiones()
+      .filter(function (a) { return !a.pdf_url && a.alumno_nombre; })
+      .map(function (a) { return a.id; });
+  }
+
+  var arranque = Date.now();
+  var hechas = 0;
+  var fallidas = 0;
+
+  for (var i = 0; i < pendientes.length; i++) {
+    if (hechas >= TOPE_FICHAS_POR_CORRIDA) break;
+    if (Date.now() - arranque > PRESUPUESTO_MS) break;
+
+    try {
+      var a = obtenerAdmision(pendientes[i]);
+      if (!a || a.pdf_url || !a.alumno_nombre) continue;
+      generarFicha(pendientes[i]);
+      hechas++;
+    } catch (err) {
+      fallidas++;
+      console.error('No se pudo generar la ficha de ' + pendientes[i] + ': ' + err);
+    }
+  }
+
+  return {
+    ok: true,
+    generadas: hechas,
+    fallidas: fallidas,
+    pendientes: Math.max(pendientes.length - hechas - fallidas, 0)
+  };
+}
+
+/**
+ * Instala el trigger que genera las fichas que quedaron pendientes.
+ * Ejecutar UNA VEZ. Corre cada hora y levanta lo que el tope dejó afuera.
+ */
+function instalarTriggerFichas() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'generarFichasPendientes') ScriptApp.deleteTrigger(t);
+  });
+
+  ScriptApp.newTrigger('generarFichasPendientes')
+    .timeBased()
+    .everyHours(1)
+    .create();
+
+  return { ok: true };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   Object.assign(module.exports, {
     mostrarBooleano: mostrarBooleano,
     mostrarFecha: mostrarFecha,
-    FICHA_POR_NIVEL: FICHA_POR_NIVEL
+    FICHA_POR_NIVEL: FICHA_POR_NIVEL,
+    TOPE_FICHAS_POR_CORRIDA: TOPE_FICHAS_POR_CORRIDA
   });
 }

@@ -59,7 +59,7 @@ test('diasEntre devuelve null si no hay fecha', () => {
  * presencia de unos textos — un test que no ejecutaba la lógica que dice
  * probar.
  */
-function funcionDelSitio(nombre) {
+function extraerFuncion(nombre) {
   const i = HTML.indexOf('function ' + nombre + '(');
   assert.ok(i !== -1, `no se encontró la función ${nombre} en el sitio`);
 
@@ -75,10 +75,18 @@ function funcionDelSitio(nombre) {
     j++;
   }
   assert.ok(nivel === 0, `la función ${nombre} no cierra bien (desde ${inicio})`);
+  return HTML.slice(i, j + 1);
+}
 
-  const codigo = HTML.slice(i, j + 1);
+/**
+ * Evalúa una o varias funciones del sitio juntas y devuelve la última.
+ * Varias porque algunas se apoyan en otras: fechaCorta usa aFecha, y
+ * extraerla sola tira ReferenceError.
+ */
+function funcionDelSitio(...nombres) {
+  const codigo = nombres.map(extraerFuncion).join('\n');
   const contexto = {};
-  new Function('ctx', codigo + '\n;ctx.f = ' + nombre + ';')(contexto);
+  new Function('ctx', codigo + '\n;ctx.f = ' + nombres[nombres.length - 1] + ';')(contexto);
   return contexto.f;
 }
 
@@ -191,4 +199,87 @@ test('la ficha conserva las secciones del original', () => {
     .forEach((parte) => {
       assert.ok(ficha.includes(parte), `la ficha perdió "${parte}"`);
     });
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Fechas hacia el sitio
+// ───────────────────────────────────────────────────────────────────
+
+test('la fecha de nacimiento se normaliza antes de salir al sitio', () => {
+  // Cuando la columna tiene formato de fecha, getValues() devuelve un Date y
+  // al serializarlo hacia el sitio llegaba como
+  // "Tue Sep 10 2024 00:00:00 GMT-0300 (Argentina Standard Time)".
+  const datos = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'datos.gs'), 'utf8');
+  assert.ok(datos.includes('CAMPOS_FECHA_CORTA'), 'falta la normalización de fechas');
+  assert.ok(datos.includes("'dd/MM/yyyy'"), 'no formatea a dd/mm/aaaa');
+  assert.ok(datos.includes('normalizarFechasVisibles_'), 'no se aplica al leer');
+});
+
+test('el sitio muestra la fecha de nacimiento, no un Date crudo', () => {
+  // Si alguna vez llega un Date sin normalizar, fechaCorta lo muestra igual
+  // en dd/mm/aaaa en vez de volcar el toString() del navegador.
+  const fechaCorta = funcionDelSitio('aFecha', 'fechaCorta');
+  assert.strictEqual(fechaCorta('10/09/2024'), '10/09/2024');
+  assert.strictEqual(fechaCorta('2024-09-10T00:00:00.000Z').length, 10);
+  assert.strictEqual(fechaCorta(''), '—');
+  assert.strictEqual(fechaCorta(null), '—');
+  assert.ok(!fechaCorta('2024-09-10T00:00:00.000Z').includes('GMT'));
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Colores por nivel
+// ───────────────────────────────────────────────────────────────────
+
+test('cada nivel tiene su propio color', () => {
+  ['Inicial', 'Primaria', 'Secundaria'].forEach((nivel) => {
+    assert.ok(HTML.includes('.nivel.n-' + nivel), `falta el color de ${nivel}`);
+    assert.ok(HTML.includes('.tarjeta.n-' + nivel), `falta la franja de ${nivel}`);
+  });
+});
+
+test('los colores de nivel son distintos entre sí', () => {
+  const css = (HTML.match(/<style>([\s\S]*?)<\/style>/) || ['', ''])[1];
+  const usados = ['Inicial', 'Primaria', 'Secundaria'].map((nivel) => {
+    const linea = css.match(new RegExp('\\.nivel\\.n-' + nivel + '\\s*\\{[^}]*\\}'));
+    assert.ok(linea, `falta la regla de ${nivel}`);
+    return linea[0].match(/color:\s*var\(--([a-z]+)\)/)[1];
+  });
+  assert.strictEqual(new Set(usados).size, 3, 'dos niveles comparten color: ' + usados.join(', '));
+});
+
+test('la tarjeta y el panel marcan el nivel', () => {
+  assert.ok(HTML.includes("'<span class=\"nivel n-' + esc(a.nivel)"));
+  assert.ok(HTML.includes("'<article class=\"tarjeta n-' + esc(a.nivel)"));
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Ficha automática
+// ───────────────────────────────────────────────────────────────────
+
+test('la generación de fichas tiene tope por corrida', () => {
+  // Cada ficha tarda entre 3 y 5 segundos y Apps Script corta a los 6
+  // minutos: sin tope, importar 50 admisiones de una abortaría a mitad.
+  const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
+  assert.ok(ficha.includes('TOPE_FICHAS_POR_CORRIDA'));
+  assert.ok(ficha.includes('PRESUPUESTO_MS'));
+  assert.ok(/Date\.now\(\) - arranque > PRESUPUESTO_MS/.test(ficha), 'no corta por tiempo');
+});
+
+test('una ficha que falla no tumba la importación', () => {
+  // La admisión ya está guardada: perder la importación entera por un PDF
+  // sería peor que quedarse sin la ficha, que se puede regenerar a mano.
+  const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
+  const cuerpo = ficha.slice(ficha.indexOf('function generarFichasPendientes'));
+  assert.ok(cuerpo.includes('try {') && cuerpo.includes('catch'), 'no protege cada ficha');
+
+  const ingesta = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'ingesta.gs'), 'utf8');
+  // La llamada real, no la mención en un comentario
+  const i = ingesta.indexOf('= generarFichasPendientes(');
+  assert.ok(i !== -1, 'la ingesta no llama a generarFichasPendientes');
+  assert.ok(ingesta.slice(i - 120, i).includes('try'), 'la ingesta no protege la llamada');
+});
+
+test('no se regenera la ficha de una admisión que ya la tiene', () => {
+  const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
+  assert.ok(ficha.includes('a.pdf_url'), 'no chequea si ya tiene ficha');
 });

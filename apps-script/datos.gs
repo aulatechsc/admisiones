@@ -11,12 +11,38 @@
 // Admisiones
 // ───────────────────────────────────────────────────────────────────
 
+/**
+ * Campos de fecha que se muestran como dd/mm/aaaa.
+ *
+ * Cuando la columna de la planilla tiene formato de fecha, getValues()
+ * devuelve un Date, y al serializarlo hacia el sitio llega como
+ * "Tue Sep 10 2024 00:00:00 GMT-0300 (Argentina Standard Time)".
+ * Se normaliza acá, del lado del servidor, para que el front no tenga que
+ * adivinar qué le llegó.
+ */
+var CAMPOS_FECHA_CORTA = ['alumno_fecha_nac'];
+
+/** Pasa a texto dd/mm/aaaa los campos de fecha de una admisión. */
+function normalizarFechasVisibles_(a) {
+  CAMPOS_FECHA_CORTA.forEach(function (campo) {
+    var d = aFecha(a[campo]);
+    if (d) a[campo] = Utilities.formatDate(d, 'GMT-3', 'dd/MM/yyyy');
+  });
+
+  // fecha_alta viaja en ISO: el sitio la formatea y además ordena por ella.
+  var alta = aFecha(a.fecha_alta);
+  if (alta) a.fecha_alta = alta.toISOString();
+
+  return a;
+}
+
 /** Todas las admisiones, opcionalmente filtradas por nivel y estado. */
 function leerAdmisiones(filtros) {
   filtros = filtros || {};
   var datos = leerHoja_(hoja_(HOJAS.ADMISIONES));
   var todas = filasAObjetos_(datos.encabezados, datos.filas)
-    .filter(function (a) { return a.id; });
+    .filter(function (a) { return a.id; })
+    .map(normalizarFechasVisibles_);
 
   if (filtros.niveles && filtros.niveles.length) {
     todas = todas.filter(function (a) { return filtros.niveles.indexOf(a.nivel) !== -1; });

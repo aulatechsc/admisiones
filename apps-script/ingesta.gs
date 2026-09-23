@@ -260,6 +260,20 @@ function importarDesdeSitio() {
           detalle: a.nivel + ' · ' + a.grado_solicitado + ' · ' + a.anio_vacante
         });
       });
+
+      // La ficha sale sola apenas entra la admisión, para que esté lista
+      // cuando alguien abra la ficha sin tener que esperarla.
+      //
+      // Va al final y no puede tumbar la importación: las filas ya están
+      // escritas, y generarFichasPendientes() se traga los errores de cada
+      // ficha. Lo que no entre por tope de tiempo sale en la corrida
+      // siguiente o desde el botón del sitio.
+      SpreadsheetApp.flush();
+      try {
+        resumen.fichas = generarFichasPendientes(nuevas.map(function (a) { return a.id; }));
+      } catch (err) {
+        console.error('No se pudieron generar las fichas nuevas: ' + err);
+      }
     }
 
     // Un campo nuevo en el formulario del sitio que nadie mapeó se pierde en

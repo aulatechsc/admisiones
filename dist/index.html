@@ -235,8 +235,19 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
 .nivel {
   font-size: 10.5px; font-weight: 650; text-transform: uppercase;
   letter-spacing: .05em; padding: 2px 7px; border-radius: var(--r-s);
-  background: var(--marca-suave); color: var(--marca);
+  background: var(--gris-bg); color: var(--gris);
 }
+/* Un color por nivel: con los tres mezclados en una sola lista, el color es
+   lo que permite ubicar el nivel sin leer. */
+.nivel.n-Inicial    { background: var(--cyan-bg);    color: var(--cyan); }
+.nivel.n-Primaria   { background: var(--verde-bg);   color: var(--verde); }
+.nivel.n-Secundaria { background: var(--violeta-bg); color: var(--violeta); }
+
+/* Franja lateral de color en la tarjeta, para distinguir de un golpe de vista */
+.tarjeta { border-left-width: 3px; }
+.tarjeta.n-Inicial    { border-left-color: var(--cyan); }
+.tarjeta.n-Primaria   { border-left-color: var(--verde); }
+.tarjeta.n-Secundaria { border-left-color: var(--violeta); }
 
 .estado {
   display: inline-flex; align-items: center; gap: 6px;
@@ -707,11 +718,11 @@ function pintarLista() {
   }
 
   lista.innerHTML = '<div class="grilla">' + admisiones.map(function (a) {
-    return '<article class="tarjeta" data-id="' + esc(a.id) + '" tabindex="0">' +
+    return '<article class="tarjeta n-' + esc(a.nivel) + '" data-id="' + esc(a.id) + '" tabindex="0">' +
       '<div class="principal">' +
         '<div class="meta" style="margin:0 0 3px">' +
           '<span>' + esc(fechaCorta(a.fecha_alta)) + '</span>' +
-          '<span class="nivel">' + esc(a.nivel) + '</span>' +
+          '<span class="nivel n-' + esc(a.nivel) + '">' + esc(a.nivel) + '</span>' +
           (esVerdadero(a.inclusion_solicitada)
             ? '<span class="marca-inclusion">inclusión</span>' : '') +
         '</div>' +
@@ -774,7 +785,8 @@ function pintarPanel(a, eventos) {
       '<div class="fila">' +
         '<div style="flex:1">' +
           '<h2>' + esc(a.alumno_nombre) + '</h2>' +
-          '<div class="sub">' + esc(a.nivel) + ' · ' + esc(a.grado_solicitado || '—') +
+          '<div class="sub"><span class="nivel n-' + esc(a.nivel) + '">' + esc(a.nivel) +
+            '</span> ' + esc(a.grado_solicitado || '—') +
             ' · Ciclo ' + esc(a.anio_vacante || '—') + ' · <code>' + esc(a.id) + '</code></div>' +
         '</div>' +
         '<span class="estado e-' + esc(a.estado) + '">' + esc(nombreEstado(a.estado)) + '</span>' +
@@ -784,11 +796,6 @@ function pintarPanel(a, eventos) {
 
     '<div class="panel-cuerpo">' +
       '<div id="avisoPanel"></div>' +
-
-      (valorInc === '' && a.trayectoria_texto
-        ? aviso('No se pudo deducir si pide proyecto de inclusión. Declaró: "' +
-                a.trayectoria_texto + '". Definilo abajo antes de enviar el mail.', 'avisa')
-        : '') +
 
       '<div class="seccion">' +
         '<h3>Recorrido de la admisión</h3>' +
