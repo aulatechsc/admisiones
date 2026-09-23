@@ -304,7 +304,6 @@ function instalarTriggerRespuestas() {
   return { ok: true };
 }
 
-
 // ───────────────────────────────────────────────────────────────────
 // Aviso interno de admisiones nuevas
 // ───────────────────────────────────────────────────────────────────

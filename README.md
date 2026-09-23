@@ -14,15 +14,19 @@ con las familias, enviar las respuestas desde plantillas y generar la ficha PDF.
 
 ## Por dónde empezar
 
-- **[`docs/instalacion.md`](docs/instalacion.md)** — cómo dejar andando la
-  planilla nueva. Son 10 minutos y no toca nada de lo que hoy funciona.
-- **[`docs/sitio.md`](docs/sitio.md)** — desplegar el sitio.
-- **[`docs/vercel.md`](docs/vercel.md)** — publicarlo en Vercel, para que
-  entre bien desde el celular.
-- **[`docs/email.md`](docs/email.md)** — mudar el sistema a `admision@`,
-  configurar el envío y cómo llegan las respuestas a cada directora.
-- **[`docs/esquema-unificado.md`](docs/esquema-unificado.md)** — relevamiento
-  de las 4 planillas, esquema, problemas detectados y decisiones.
+**[`docs/PUESTA-EN-MARCHA.md`](docs/PUESTA-EN-MARCHA.md)** — dejar el sistema
+andando, paso por paso. Empezá por ahí.
+
+El resto, para consultar cuando haga falta:
+
+- [`docs/vercel.md`](docs/vercel.md) — publicar el sitio fuera de Apps Script,
+  para que entre bien desde el celular.
+- [`docs/email.md`](docs/email.md) — cómo salen los mails, quién recibe copia
+  y cómo llegan las respuestas a cada directora.
+- [`docs/esquema-unificado.md`](docs/esquema-unificado.md) — relevamiento de
+  las planillas viejas, decisiones de diseño y problemas detectados.
+- [`docs/instalacion.md`](docs/instalacion.md) — crear la planilla desde cero.
+  Sólo si hubiera que rehacerla.
 
 ## Estado actual
 
@@ -75,7 +79,7 @@ Lo que falta:
 
     npm test
 
-162 tests. Las funciones puras no tocan SpreadsheetApp y corren con el runner
+157 tests. Las funciones puras no tocan SpreadsheetApp y corren con el runner
 de node, sin necesidad de una planilla. Los de regresión verifican que las
 plantillas migradas producen exactamente el mismo texto que los scripts hoy en
 producción.

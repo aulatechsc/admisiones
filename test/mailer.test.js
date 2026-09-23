@@ -157,42 +157,10 @@ test('el pie de la ficha no lleva markdown', () => {
   });
 });
 
-test('mostrarBooleano distingue Sí, No y sin definir', () => {
-  assert.strictEqual(M.mostrarBooleano(true), 'Sí');
-  assert.strictEqual(M.mostrarBooleano('TRUE'), 'Sí');
-  assert.strictEqual(M.mostrarBooleano(false), 'No');
-  assert.strictEqual(M.mostrarBooleano('No'), 'No');
-  // Sin dato queda en blanco, no en "No": son cosas distintas en una ficha
-  assert.strictEqual(M.mostrarBooleano(null), '');
-  assert.strictEqual(M.mostrarBooleano('texto raro'), '');
-});
 
-test('calcularEdad usa fechas dd/mm/aaaa', () => {
-  const ref = new Date(2026, 8, 22); // 22/09/2026
-  assert.strictEqual(M.calcularEdad('03/07/2021', ref), '5');
-  assert.strictEqual(M.calcularEdad('27/11/2009', ref), '16');
-});
 
-test('calcularEdad no cuenta el cumpleaños que todavía no llegó', () => {
-  const ref = new Date(2026, 8, 22); // 22/09/2026
-  assert.strictEqual(M.calcularEdad('23/09/2020', ref), '5'); // cumple mañana
-  assert.strictEqual(M.calcularEdad('22/09/2020', ref), '6'); // cumple hoy
-  assert.strictEqual(M.calcularEdad('21/09/2020', ref), '6');
-});
 
-test('calcularEdad tolera lo que no es fecha', () => {
-  assert.strictEqual(M.calcularEdad('', new Date()), '');
-  assert.strictEqual(M.calcularEdad(null, new Date()), '');
-  assert.strictEqual(M.calcularEdad('no es fecha', new Date()), '');
-});
 
-test('calcularEdad acepta también fechas ISO', () => {
-  // Las planillas mezclan formatos: el formulario del sitio escribe
-  // dd/mm/aaaa y las columnas de fecha nativas vuelven como ISO.
-  const ref = new Date(2026, 8, 23);
-  assert.strictEqual(M.calcularEdad('2021-07-03', ref), '5');
-  assert.strictEqual(M.calcularEdad('03/07/2021', ref), '5');
-});
 
 test('mostrarFecha deja pasar el texto ya formateado', () => {
   assert.strictEqual(M.mostrarFecha('03/07/2021'), '03/07/2021');

@@ -119,7 +119,6 @@ function filasAObjetos_(encabezados, filas) {
   });
 }
 
-
 // ───────────────────────────────────────────────────────────────────
 // Fechas
 // ───────────────────────────────────────────────────────────────────
@@ -143,23 +142,6 @@ function aFecha(valor) {
 
   var iso = new Date(t);
   return isNaN(iso.getTime()) ? null : iso;
-}
-
-/**
- * Edad en años a la fecha de referencia.
- * Se calcula al vuelo en vez de guardarse: una edad guardada envejece mal, y
- * la planilla vieja tiene una columna "Edad Actual" que ya no es cierta.
- */
-function calcularEdad(fechaNac, referencia) {
-  var d = aFecha(fechaNac);
-  if (!d) return '';
-
-  var hoy = referencia || new Date();
-  var edad = hoy.getFullYear() - d.getFullYear();
-  var mes = hoy.getMonth() - d.getMonth();
-  if (mes < 0 || (mes === 0 && hoy.getDate() < d.getDate())) edad--;
-
-  return edad < 0 ? '' : edad.toString();
 }
 
 /**
@@ -477,8 +459,6 @@ var CAMPOS_DISPONIBLES = [
 /** Link a los aranceles vigentes, disponible como {{url_aranceles}}. */
 var URL_ARANCELES = 'https://docs.google.com/spreadsheets/d/1O9gDK1i3PJIeMTrAtGhnNaYAp6PzNCzjUYGTX5uw-qM/edit?usp=sharing';
 
-
-
 // ───────────────────────────────────────────────────────────────────
 // Condiciones
 // ───────────────────────────────────────────────────────────────────
@@ -637,7 +617,7 @@ var COLUMNAS_PLANTILLAS = [
 /** Lee todas las plantillas de la solapa. */
 function leerPlantillas() {
   var hoja = SpreadsheetApp.getActive().getSheetByName(HOJA_PLANTILLAS);
-  if (!hoja) throw new Error('No existe la solapa ' + HOJA_PLANTILLAS + '. Corré seedPlantillas() una vez.');
+  if (!hoja) throw new Error('No existe la solapa ' + HOJA_PLANTILLAS + '. Corré setup() primero.');
 
   var valores = hoja.getDataRange().getValues();
   if (valores.length < 2) return [];
@@ -653,14 +633,6 @@ function leerPlantillas() {
       p.prioridad = aNumero(p.prioridad) || 0;
       return p;
     });
-}
-
-/** Devuelve las plantillas al sitio, con los campos interpolables. */
-function listarPlantillas() {
-  return {
-    plantillas: leerPlantillas(),
-    campos: CAMPOS_DISPONIBLES.concat(['url_aranceles'])
-  };
 }
 
 /**
@@ -700,49 +672,9 @@ function guardarPlantilla(plantilla) {
   return { ok: true };
 }
 
-/**
- * Previsualiza cómo queda una plantilla con los datos de una admisión real,
- * sin enviar nada. Es lo que alimenta el botón "Ver cómo queda" del sitio.
- */
-function previsualizar(plantilla, datos) {
-  return renderizarPlantilla(plantilla, datos);
-}
-
 // ───────────────────────────────────────────────────────────────────
 // Carga inicial
 // ───────────────────────────────────────────────────────────────────
-
-/**
- * Crea la solapa `Plantillas` con los 4 cuerpos que hoy viven hardcodeados.
- * Los textos se copiaron literalmente de los scripts en producción — ver
- * apps-script/legacy/. Ejecutar UNA VEZ.
- *
- * Secundaria no tiene plantillas: hoy el primer contacto es telefónico.
- */
-function seedPlantillas() {
-  var ss = SpreadsheetApp.getActive();
-  var hoja = ss.getSheetByName(HOJA_PLANTILLAS);
-  if (!hoja) hoja = ss.insertSheet(HOJA_PLANTILLAS);
-
-  if (hoja.getLastRow() > 1) {
-    throw new Error('La solapa ' + HOJA_PLANTILLAS + ' ya tiene datos. ' +
-      'Borrala a mano si querés volver a cargar las plantillas iniciales.');
-  }
-
-  hoja.clear();
-  hoja.getRange(1, 1, 1, COLUMNAS_PLANTILLAS.length)
-    .setValues([COLUMNAS_PLANTILLAS])
-    .setFontWeight('bold');
-  hoja.setFrozenRows(1);
-
-  PLANTILLAS_INICIALES.forEach(function (p) {
-    hoja.appendRow(COLUMNAS_PLANTILLAS.map(function (c) { return p[c]; }));
-  });
-
-  hoja.setColumnWidth(6, 300);
-  hoja.setColumnWidth(7, 600);
-  return { ok: true, creadas: PLANTILLAS_INICIALES.length };
-}
 
 var PLANTILLAS_INICIALES = [
   {
@@ -1342,13 +1274,6 @@ function mostrarFecha(valor) {
     return isNaN(valor.getTime()) ? '' : Utilities.formatDate(valor, 'GMT-3', 'dd/MM/yyyy');
   }
   return valor.toString().trim();
-}
-
-/** Muestra un booleano como Sí/No, y deja vacío lo que no se sabe. */
-function mostrarBooleano(valor) {
-  var b = aBooleano(valor);
-  if (b === null) return '';
-  return b ? 'Sí' : 'No';
 }
 
 function estiloCelda_(celda, bg, color, tam, negrita, italica, texto, alineacion) {
@@ -1970,7 +1895,6 @@ function instalarTriggerRespuestas() {
   return { ok: true };
 }
 
-
 // ───────────────────────────────────────────────────────────────────
 // Aviso interno de admisiones nuevas
 // ───────────────────────────────────────────────────────────────────
@@ -2102,8 +2026,6 @@ function avisarNuevasAdmisiones(nuevas) {
 // ───────────────────────────────────────────────────────────────────
 // Funciones puras
 // ───────────────────────────────────────────────────────────────────
-
-
 
 /**
  * Deduce si la familia declaró proyecto de inclusión a partir del campo
@@ -2239,7 +2161,6 @@ function siguienteId(idsExistentes) {
   while (relleno.length < 5) relleno = '0' + relleno;
   return 'A-' + relleno;
 }
-
 
 /**
  * Importa las solicitudes nuevas de los 3 niveles.
@@ -2383,7 +2304,6 @@ function importarDesdeSitio() {
     lock.releaseLock();
   }
 }
-
 
 /** Instala el trigger que importa cada 15 minutos. Ejecutar UNA VEZ. */
 function instalarTriggerIngesta() {
@@ -2556,6 +2476,8 @@ function ejecutar(accion, params, email) {
         exigirAcceso(usuario, params.id);
         return { ok: true, resultado: enviarMailAdmision(params.id, params) };
 
+      // Sin botón en el sitio por ahora. Se deja expuesta porque Secundaria
+      // hace el primer contacto por teléfono y va a necesitarla.
       case 'registrarLlamada':
         exigirAcceso(usuario, params.id);
         return { ok: true, resultado: registrarLlamada(params.id, params.detalle) };

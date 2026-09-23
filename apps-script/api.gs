@@ -151,6 +151,8 @@ function ejecutar(accion, params, email) {
         exigirAcceso(usuario, params.id);
         return { ok: true, resultado: enviarMailAdmision(params.id, params) };
 
+      // Sin botón en el sitio por ahora. Se deja expuesta porque Secundaria
+      // hace el primer contacto por teléfono y va a necesitarla.
       case 'registrarLlamada':
         exigirAcceso(usuario, params.id);
         return { ok: true, resultado: registrarLlamada(params.id, params.detalle) };

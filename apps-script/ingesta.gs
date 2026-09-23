@@ -20,8 +20,6 @@
 // Funciones puras
 // ───────────────────────────────────────────────────────────────────
 
-
-
 /**
  * Deduce si la familia declaró proyecto de inclusión a partir del campo
  * "Trayectoria escolar actual".
@@ -156,7 +154,6 @@ function siguienteId(idsExistentes) {
   while (relleno.length < 5) relleno = '0' + relleno;
   return 'A-' + relleno;
 }
-
 
 /**
  * Importa las solicitudes nuevas de los 3 niveles.
@@ -300,7 +297,6 @@ function importarDesdeSitio() {
     lock.releaseLock();
   }
 }
-
 
 /** Instala el trigger que importa cada 15 minutos. Ejecutar UNA VEZ. */
 function instalarTriggerIngesta() {

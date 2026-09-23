@@ -53,13 +53,6 @@ function mostrarFecha(valor) {
   return valor.toString().trim();
 }
 
-/** Muestra un booleano como Sí/No, y deja vacío lo que no se sabe. */
-function mostrarBooleano(valor) {
-  var b = aBooleano(valor);
-  if (b === null) return '';
-  return b ? 'Sí' : 'No';
-}
-
 function estiloCelda_(celda, bg, color, tam, negrita, italica, texto, alineacion) {
   celda.setBackgroundColor(bg);
   celda.setPaddingTop(3).setPaddingBottom(3).setPaddingLeft(5).setPaddingRight(5);
@@ -371,7 +364,6 @@ function instalarTriggerFichas() {
 
 if (typeof module !== 'undefined' && module.exports) {
   Object.assign(module.exports, {
-    mostrarBooleano: mostrarBooleano,
     mostrarFecha: mostrarFecha,
     FICHA_POR_NIVEL: FICHA_POR_NIVEL,
     TOPE_FICHAS_POR_CORRIDA: TOPE_FICHAS_POR_CORRIDA,

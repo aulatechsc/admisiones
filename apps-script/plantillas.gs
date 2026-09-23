@@ -34,8 +34,6 @@ var CAMPOS_DISPONIBLES = [
 /** Link a los aranceles vigentes, disponible como {{url_aranceles}}. */
 var URL_ARANCELES = 'https://docs.google.com/spreadsheets/d/1O9gDK1i3PJIeMTrAtGhnNaYAp6PzNCzjUYGTX5uw-qM/edit?usp=sharing';
 
-
-
 // ───────────────────────────────────────────────────────────────────
 // Condiciones
 // ───────────────────────────────────────────────────────────────────
@@ -194,7 +192,7 @@ var COLUMNAS_PLANTILLAS = [
 /** Lee todas las plantillas de la solapa. */
 function leerPlantillas() {
   var hoja = SpreadsheetApp.getActive().getSheetByName(HOJA_PLANTILLAS);
-  if (!hoja) throw new Error('No existe la solapa ' + HOJA_PLANTILLAS + '. Corré seedPlantillas() una vez.');
+  if (!hoja) throw new Error('No existe la solapa ' + HOJA_PLANTILLAS + '. Corré setup() primero.');
 
   var valores = hoja.getDataRange().getValues();
   if (valores.length < 2) return [];
@@ -210,14 +208,6 @@ function leerPlantillas() {
       p.prioridad = aNumero(p.prioridad) || 0;
       return p;
     });
-}
-
-/** Devuelve las plantillas al sitio, con los campos interpolables. */
-function listarPlantillas() {
-  return {
-    plantillas: leerPlantillas(),
-    campos: CAMPOS_DISPONIBLES.concat(['url_aranceles'])
-  };
 }
 
 /**
@@ -257,49 +247,9 @@ function guardarPlantilla(plantilla) {
   return { ok: true };
 }
 
-/**
- * Previsualiza cómo queda una plantilla con los datos de una admisión real,
- * sin enviar nada. Es lo que alimenta el botón "Ver cómo queda" del sitio.
- */
-function previsualizar(plantilla, datos) {
-  return renderizarPlantilla(plantilla, datos);
-}
-
 // ───────────────────────────────────────────────────────────────────
 // Carga inicial
 // ───────────────────────────────────────────────────────────────────
-
-/**
- * Crea la solapa `Plantillas` con los 4 cuerpos que hoy viven hardcodeados.
- * Los textos se copiaron literalmente de los scripts en producción — ver
- * apps-script/legacy/. Ejecutar UNA VEZ.
- *
- * Secundaria no tiene plantillas: hoy el primer contacto es telefónico.
- */
-function seedPlantillas() {
-  var ss = SpreadsheetApp.getActive();
-  var hoja = ss.getSheetByName(HOJA_PLANTILLAS);
-  if (!hoja) hoja = ss.insertSheet(HOJA_PLANTILLAS);
-
-  if (hoja.getLastRow() > 1) {
-    throw new Error('La solapa ' + HOJA_PLANTILLAS + ' ya tiene datos. ' +
-      'Borrala a mano si querés volver a cargar las plantillas iniciales.');
-  }
-
-  hoja.clear();
-  hoja.getRange(1, 1, 1, COLUMNAS_PLANTILLAS.length)
-    .setValues([COLUMNAS_PLANTILLAS])
-    .setFontWeight('bold');
-  hoja.setFrozenRows(1);
-
-  PLANTILLAS_INICIALES.forEach(function (p) {
-    hoja.appendRow(COLUMNAS_PLANTILLAS.map(function (c) { return p[c]; }));
-  });
-
-  hoja.setColumnWidth(6, 300);
-  hoja.setColumnWidth(7, 600);
-  return { ok: true, creadas: PLANTILLAS_INICIALES.length };
-}
 
 var PLANTILLAS_INICIALES = [
   {

@@ -104,7 +104,6 @@ function filasAObjetos_(encabezados, filas) {
   });
 }
 
-
 // ───────────────────────────────────────────────────────────────────
 // Fechas
 // ───────────────────────────────────────────────────────────────────
@@ -128,23 +127,6 @@ function aFecha(valor) {
 
   var iso = new Date(t);
   return isNaN(iso.getTime()) ? null : iso;
-}
-
-/**
- * Edad en años a la fecha de referencia.
- * Se calcula al vuelo en vez de guardarse: una edad guardada envejece mal, y
- * la planilla vieja tiene una columna "Edad Actual" que ya no es cierta.
- */
-function calcularEdad(fechaNac, referencia) {
-  var d = aFecha(fechaNac);
-  if (!d) return '';
-
-  var hoy = referencia || new Date();
-  var edad = hoy.getFullYear() - d.getFullYear();
-  var mes = hoy.getMonth() - d.getMonth();
-  if (mes < 0 || (mes === 0 && hoy.getDate() < d.getDate())) edad--;
-
-  return edad < 0 ? '' : edad.toString();
 }
 
 /**
@@ -185,7 +167,6 @@ if (typeof module !== 'undefined' && module.exports) {
     normalizarFecha: normalizarFecha,
     normalizarParaComparar: normalizarParaComparar,
     aFecha: aFecha,
-    calcularEdad: calcularEdad,
     diasEntre: diasEntre,
     formatearFechaCorta: formatearFechaCorta
   });
