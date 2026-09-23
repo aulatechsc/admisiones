@@ -17,8 +17,8 @@ con las familias, enviar las respuestas desde plantillas y generar la ficha PDF.
 - **[`docs/instalacion.md`](docs/instalacion.md)** — cómo dejar andando la
   planilla nueva. Son 10 minutos y no toca nada de lo que hoy funciona.
 - **[`docs/sitio.md`](docs/sitio.md)** — desplegar el sitio.
-- **[`docs/email.md`](docs/email.md)** — configurar el envío desde
-  `admision@`, las copias y cómo llegan las respuestas a cada directora.
+- **[`docs/email.md`](docs/email.md)** — mudar el sistema a `admision@`,
+  configurar el envío y cómo llegan las respuestas a cada directora.
 - **[`docs/esquema-unificado.md`](docs/esquema-unificado.md)** — relevamiento
   de las 4 planillas, esquema, problemas detectados y decisiones.
 
@@ -43,7 +43,7 @@ Lo que falta:
     docs/
       esquema-unificado.md    Relevamiento y diseño del modelo de datos
       instalacion.md          Puesta en marcha paso a paso
-      email.md                Configuración del envío de mails
+      email.md                Mudanza a admision@ y envío de mails
     apps-script/
       util.gs                 Normalización y acceso genérico a solapas
       config.gs               Esquema de solapas y mapeo desde el sitio

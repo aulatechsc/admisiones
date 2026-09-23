@@ -1,115 +1,136 @@
-# Configurar el envío de mails
+# Pasar el sistema a `admision@sancarlos.edu.ar`
 
-Con la cuenta `admision@sancarlos.edu.ar` ya creada, hay dos caminos. El
-primero es más simple y es el que conviene.
+`admision@` es una cuenta propia, así que el sistema se muda ahí. **No se crea
+nada de nuevo**: la planilla y el proyecto de Apps Script se comparten, y el
+proyecto viaja dentro de la planilla.
 
----
+## Por qué hace falta mudarlo
 
-## Antes de empezar: ¿qué es `admision@`?
+Dos funciones del sistema operan sobre el buzón de **la cuenta que ejecuta el
+script**, no sobre una dirección que se le indique:
 
-| Si es… | Camino |
+| Función | Qué hace |
 |---|---|
-| Una **cuenta de Google Workspace** con su propia contraseña | **Camino A** — mover el proyecto ahí |
-| Un **alias** de otra cuenta, sin contraseña propia | **Camino B** — configurar "Enviar como" |
+| `Gmail.Users.Messages.send` | Envía desde el buzón de quien ejecuta |
+| `GmailApp.getThreadById` | Lee el buzón de quien ejecuta |
 
-Para saberlo: intentá iniciar sesión en Gmail con `admision@sancarlos.edu.ar`.
-Si entra, es cuenta propia (camino A). Si dice que no existe, es un alias
-(camino B).
+Mientras el script corra como `aulatech@`, los mails salen de `aulatech@` y
+las respuestas que busca son las de `aulatech@` — nunca va a ver lo que llega
+a `admision@`.
+
+Y de ahí sale **el paso que más se olvida**: los triggers pertenecen a la
+cuenta que los creó. Los que instalaste desde `aulatech@` van a seguir
+corriendo como `aulatech@` aunque después despliegues desde `admision@`. Hay
+que borrarlos y volver a instalarlos. Es el punto 5.
 
 ---
 
-# Camino A — el proyecto vive en `admision@`
+## 1. Compartir las dos planillas
 
-Es el más limpio: el script envía desde su propia casilla, sin alias, y lee
-las respuestas del mismo buzón. Menos piezas, menos para romperse.
-
-## A1. Compartir las planillas con `admision@`
-
-Desde `aulatech@`, abrir cada planilla y compartir con
+Con la sesión de **`aulatech@`**, abrir cada una y compartir con
 `admision@sancarlos.edu.ar` **como editor**:
 
 - La planilla del sistema (la que creaste con `setup()`)
 - `Admisiones - Respuestas Sitio Web`
 
-Sin esto el script no puede leer ni escribir nada.
+La segunda es de donde salen las solicitudes. Sin acceso, la importación
+falla.
 
-## A2. Mover el proyecto
+> Si podés, transferí también la **propiedad** de la planilla del sistema a
+> `admision@` (Compartir > el ícono junto a `admision@` > Transferir
+> propiedad). No es obligatorio, pero deja el sistema sin depender de una
+> cuenta que puede cambiar de manos.
 
-En la planilla del sistema: `Compartir` > agregar `admision@` como **editor**.
-El proyecto de Apps Script viaja con la planilla, así que con eso alcanza.
+## 2. Borrar los triggers viejos
 
-## A3. Entrar como `admision@` y desplegar
+Todavía con la sesión de **`aulatech@`**, en el editor de Apps Script:
 
-1. Iniciar sesión en Google con `admision@sancarlos.edu.ar`
-2. Abrir la planilla del sistema > `Extensiones` > `Apps Script`
-3. `Servicios` > `+` > **Gmail API** > Agregar
-4. Elegir la función `setup` y Ejecutar — pide autorización, aceptar
-5. `Implementar` > `Nueva implementación` > `Aplicación web`
-   - Ejecutar como: **Yo (admision@sancarlos.edu.ar)**
-   - Quién tiene acceso: **Usuarios de sancarlos.edu.ar**
+1. Reloj ⏰ (Activadores) en la barra izquierda
+2. Borrar **todos** los que estén — el de importar, el de respuestas, el de
+   fichas
 
-## A4. Cargar a las personas
+Si quedan, vas a tener dos importaciones corriendo en paralelo desde cuentas
+distintas.
 
-En la solapa `Usuarios`, agregar a quien vaya a entrar al sitio. Si no está
-ahí, no entra, aunque tenga cuenta del colegio.
+## 3. Entrar como `admision@`
+
+Cerrar sesión, o abrir una ventana de incógnito, y entrar con
+`admision@sancarlos.edu.ar`.
+
+Abrir la planilla del sistema (desde "Compartido conmigo" en Drive) >
+`Extensiones` > `Apps Script`.
+
+## 4. Activar la Gmail API y autorizar
+
+1. `Servicios` (con el `+`) en la barra izquierda > buscar **Gmail API** >
+   Agregar
+2. Elegir la función `migrarEsquema` en el desplegable de arriba y Ejecutar ▶
+3. Va a pedir autorización: **Revisar permisos** > elegir `admision@` >
+   "Configuración avanzada" > "Ir a (nombre del proyecto)" > Permitir
+
+Ese tercer paso asusta porque Google avisa que la app no está verificada. Es
+normal: la app es tuya, no está publicada en ningún lado.
+
+Si `migrarEsquema` devuelve algo como `Admisiones: + estado_previo`, quedó
+todo bien.
+
+## 5. Reinstalar los triggers — como `admision@`
+
+Elegir cada una y Ejecutar ▶, una por una:
+
+    instalarTriggerIngesta        → importa del sitio cada 15 minutos
+    instalarTriggerRespuestas     → trae las respuestas cada 15 minutos
+    instalarTriggerFichas         → genera las fichas pendientes cada hora
+
+Ahora sí corren como `admision@` y miran el buzón correcto.
+
+## 6. Desplegar el sitio — como `admision@`
+
+`Implementar` > `Nueva implementación` > ⚙️ > `Aplicación web`:
+
+- **Ejecutar como:** Yo (`admision@sancarlos.edu.ar`)
+- **Quién tiene acceso:** Usuarios de sancarlos.edu.ar
+
+Te da una URL nueva. **Ésa es la buena** — la que tenías de `aulatech@` ya no
+sirve, avisale a quien la tenga guardada.
+
+> "Ejecutar como: Yo" es obligatorio acá. Con "Usuario que accede", cada
+> directora ejecutaría con sus propios permisos y no podría ni enviar desde
+> `admision@` ni leer ese buzón.
+
+## 7. Verificar que reconoce a cada persona
+
+Entrá al sitio y mirá arriba a la derecha: tiene que decir **tu nombre**, no
+`admision@`.
+
+Pedile a Eliana o a Rocío que entren y verifiquen lo mismo. Si a ellas les
+dice `admision@`, avisame — significa que `Session.getActiveUser()` no está
+devolviendo el usuario real y hay que resolverlo de otra forma.
+
+También revisá que cada una vea **sólo su nivel**.
 
 ---
 
-# Camino B — `admision@` es un alias
+## 8. La prueba antes de escribirle a una familia
 
-El proyecto sigue en `aulatech@` y se configura el alias para poder enviar
-desde esa dirección.
+No la saltees. Es lo único que confirma que el circuito cierra.
 
-## B1. Agregar el alias
+1. Abrí cualquier admisión y **cambiá el mail por el tuyo**. Guardar datos.
+2. **Enviar mail**. Revisá la previsualización: de quién sale, a quién le
+   llega la copia, a dónde responden.
+3. Enviar.
+4. Revisá lo que te llegó: que el remitente diga *Admisiones - Colegio San
+   Carlos Diálogos*, que las tildes estén bien, que la firma sea la correcta.
+5. **Respondé ese mail** desde tu casilla, como lo haría una familia —
+   "Responder", no "Responder a todos".
+6. Fijate que la respuesta le haya llegado también a la directora del nivel.
+7. Esperá 15 minutos y volvé a abrir la admisión: **la respuesta tiene que
+   aparecer en el recorrido**.
+8. Devolvé el mail original de la familia en la ficha.
 
-En Gmail, con la sesión de `aulatech@`:
-
-1. ⚙️ > `Ver toda la configuración` > pestaña **Cuentas e importación**
-2. En "Enviar mensajes como": **Añadir otra dirección de correo**
-3. Nombre: `Admisiones - Colegio San Carlos Diálogos`
-4. Dirección: `admision@sancarlos.edu.ar`
-5. Destildar "Tratar como un alias"
-6. Google manda un código de verificación **a `admision@`** — hay que entrar a
-   esa casilla y confirmarlo
-
-Ese último paso es el que suele frenar todo: si nadie puede abrir `admision@`
-para leer el código, el alias no se puede verificar y hay que ir por el
-camino A.
-
-## B2. Activar la Gmail API
-
-En el editor de Apps Script: `Servicios` > `+` > **Gmail API** > Agregar.
-
-## B3. Volver a implementar
-
-`Implementar` > `Administrar implementaciones` > ✏️ > Versión: **Nueva**.
-
-### Lo que hay que saber del camino B
-
-Las respuestas de las familias llegan a la casilla de `admision@`, pero el
-script corre como `aulatech@` y **sólo puede leer el buzón de `aulatech@`**.
-Para que las respuestas se registren en el recorrido hace falta, además, un
-reenvío automático de `admision@` hacia `aulatech@` (en Gmail de `admision@`:
-Configuración > Reenvío).
-
-Es una pieza más que se puede desconfigurar sola. Por eso conviene el camino A.
-
----
-
-## Probar antes de escribirle a una familia
-
-1. Entrar al sitio y abrir cualquier admisión
-2. Cambiar el mail de la ficha por el tuyo, y guardar
-3. Tocar **Enviar mail**
-4. Revisar la previsualización: de quién sale, a quién le llega la copia, a
-   dónde responden
-5. Enviar, y revisar que llegue bien: remitente, tildes, firma
-6. **Responder ese mail** desde tu casilla y esperar 15 minutos
-7. Volver a abrir la admisión: la respuesta tiene que aparecer en el recorrido
-8. Devolver el mail original de la familia en la ficha
-
-El paso 6 es el que verifica de verdad que el circuito cierra. Si la respuesta
-no aparece, el problema está en el buzón, no en el sitio.
+El paso 7 es el que prueba que `sincronizarRespuestas` corre con la cuenta
+correcta. Si la respuesta no aparece, el trigger quedó instalado desde
+`aulatech@` — volvé al punto 2.
 
 ---
 
@@ -123,7 +144,7 @@ no aparece, el problema está en el buzón, no en el sitio.
 El `Reply-To` con **dos** direcciones es lo que sostiene el esquema: cuando la
 familia toca "Responder" — no "Responder a todos", que casi nadie usa — la
 respuesta llega a la directora, que sigue la conversación desde su bandeja, y
-a `admision@`, donde el sistema la registra.
+a `admision@`, donde el sistema la registra en el recorrido.
 
 Quién recibe copia por nivel se cambia en `COPIAS_POR_NIVEL`, dentro de
 `Codigo.gs`:
@@ -136,18 +157,21 @@ var COPIAS_POR_NIVEL = {
 };
 ```
 
-## Registrar las respuestas
-
-`instalarTriggerRespuestas()`, una vez. Revisa cada 15 minutos los hilos con
-mail enviado y suma las respuestas nuevas al recorrido. Es idempotente:
-compara contra lo ya registrado, así que correrlo de más no duplica.
+---
 
 ## Si algo falla
 
-| Error | Qué pasa |
+| Síntoma | Causa |
 |---|---|
-| `Gmail is not defined` | Falta activar la Gmail API (paso A3.3 / B2) |
-| `Invalid from header` | El alias no está verificado, o el From no coincide con la cuenta |
-| El mail sale de `aulatech@` | Estás en el camino B y el alias no quedó configurado |
-| Las respuestas no aparecen | Falta `instalarTriggerRespuestas()`, o el reenvío del camino B |
+| `Gmail is not defined` | Falta activar la Gmail API (punto 4) |
+| El mail sale de `aulatech@` | Desplegaste desde la cuenta equivocada (punto 6) |
+| Las respuestas no aparecen en el recorrido | El trigger quedó instalado desde `aulatech@` (puntos 2 y 5) |
+| Se importa dos veces | Quedó el trigger viejo de `aulatech@` sin borrar (punto 2) |
+| `No tenés acceso a las admisiones de X` | La persona no tiene ese nivel en la solapa `Usuarios` |
+| `La cuenta … no está habilitada` | Falta agregarla en `Usuarios` con `activo` en TRUE |
 | `Faltan datos para completar el mail` | No es un error: la plantilla tiene un campo vacío y el sistema frena a propósito |
+
+## Qué queda en `aulatech@`
+
+Nada del sistema nuevo. Las tres planillas viejas de nivel siguen como están,
+con sus scripts, operando en paralelo — no se tocan hasta que decidas apagarlas.
