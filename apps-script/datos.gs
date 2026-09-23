@@ -127,7 +127,10 @@ function obtenerAdmision(id) {
 
 /** Fila de una admisión en la planilla, o -1. Fila 1 son los encabezados. */
 function filaDeAdmision_(hoja, id) {
-  var ids = hoja.getRange(2, COLUMNAS_ADMISIONES.indexOf('id') + 1, Math.max(hoja.getLastRow() - 1, 1), 1)
+  var colId = indicesDe_(hoja)['id'];
+  if (!colId) throw new Error('La solapa ' + HOJAS.ADMISIONES + ' no tiene columna "id".');
+
+  var ids = hoja.getRange(2, colId, Math.max(hoja.getLastRow() - 1, 1), 1)
     .getValues()
     .map(function (f) { return f[0].toString(); });
   var i = ids.indexOf(id.toString());
@@ -146,14 +149,14 @@ function actualizarAdmision(id, cambios) {
   var fila = filaDeAdmision_(hoja, id);
   if (fila === -1) throw new Error('No existe la admisión ' + id);
 
+  var cols = indicesDe_(hoja);
+
   Object.keys(cambios).forEach(function (campo) {
-    var col = COLUMNAS_ADMISIONES.indexOf(campo);
-    if (col === -1) return;
-    hoja.getRange(fila, col + 1).setValue(cambios[campo]);
+    if (!cols[campo]) return;
+    hoja.getRange(fila, cols[campo]).setValue(cambios[campo]);
   });
 
-  var colAct = COLUMNAS_ADMISIONES.indexOf('actualizado');
-  if (colAct !== -1) hoja.getRange(fila, colAct + 1).setValue(new Date().toISOString());
+  if (cols.actualizado) hoja.getRange(fila, cols.actualizado).setValue(new Date().toISOString());
 
   return obtenerAdmision(id);
 }
@@ -243,11 +246,11 @@ function deshacerCambioEstado(idEvento) {
     throw new Error('El estado anterior "' + estadoAnterior + '" ya no existe.');
   }
 
-  var colAnulado = COLUMNAS_EVENTOS.indexOf('anulado');
-  if (colAnulado === -1) {
+  var colAnulado = indicesDe_(hoja)['anulado'];
+  if (!colAnulado) {
     throw new Error('Falta la columna "anulado" en Eventos. Corré migrarEsquema().');
   }
-  hoja.getRange(fila, colAnulado + 1).setValue(true);
+  hoja.getRange(fila, colAnulado).setValue(true);
 
   var admision = obtenerAdmision(evento.id_admision);
   if (admision) {
@@ -287,7 +290,13 @@ function registrarEvento(evento) {
     var hoja = SpreadsheetApp.getActive().getSheetByName(HOJAS.EVENTOS);
     if (!hoja) return;
 
-    var fila = COLUMNAS_EVENTOS.map(function (c) {
+    // Se arma según los encabezados reales, no según COLUMNAS_EVENTOS: si la
+    // solapa tiene otro orden, appendRow escribiría cada valor corrido.
+    var encabezados = hoja.getRange(1, 1, 1, Math.max(hoja.getLastColumn(), 1))
+      .getValues()[0]
+      .map(function (e) { return (e === null || e === undefined) ? '' : e.toString().trim(); });
+
+    var fila = encabezados.map(function (c) {
       if (c === 'id') return Utilities.getUuid();
       if (c === 'timestamp') return evento.timestamp || new Date().toISOString();
       var v = evento[c];

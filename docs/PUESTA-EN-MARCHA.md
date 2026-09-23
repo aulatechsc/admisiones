@@ -165,6 +165,7 @@ Los dos modos conviven: la URL de Apps Script sigue andando como respaldo.
 | `generarFichasPendientes` | Generar las fichas que hayan quedado |
 | `limpiarFechas` | Si volvés a ver una fecha con `GMT-0300` |
 | `migrarEsquema` | Después de actualizar el código, por si suma columnas |
+| `repararColumnas` | Si ves un valor en la columna equivocada (una fecha en `estado_previo`, un estado en `responsable`) |
 
 `setup` **no** hay que volver a correrla: es sólo para crear la planilla desde
 cero.
@@ -181,3 +182,4 @@ cero.
 | Se importa dos veces | Quedó un trigger viejo de otra cuenta |
 | `Faltan datos para completar el mail` | No es un error: la plantilla tiene un campo vacío y el sistema frena a propósito |
 | Una función aparece dos veces | Quedaron archivos viejos en el proyecto (paso 1) |
+| Un valor aparece en la columna de al lado | Versión anterior al arreglo de columnas: pegá el código nuevo y corré `repararColumnas` |

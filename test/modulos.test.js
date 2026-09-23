@@ -183,3 +183,72 @@ test('el bundle avisa que es generado', () => {
   const dist = fs.readFileSync(path.join(__dirname, '..', 'dist', 'Codigo.gs'), 'utf8');
   assert.match(dist, /ARCHIVO GENERADO/);
 });
+
+// ───────────────────────────────────────────────────────────────────
+// Escritura en planilla: siempre por nombre de columna
+// ───────────────────────────────────────────────────────────────────
+
+/**
+ * Este bloque existe por un bug concreto y caro.
+ *
+ * Las escrituras resolvían la columna con COLUMNAS_ADMISIONES.indexOf(campo),
+ * es decir por la posición del campo en la lista del código. Pero
+ * migrarEsquema() agrega las columnas nuevas AL FINAL de la solapa, no en su
+ * lugar lógico. Al sumar `estado_previo` en el medio de la lista, los dos
+ * órdenes dejaron de coincidir y todo lo posterior se escribió corrido: el
+ * timestamp de `actualizado` cayó en `estado_previo`.
+ *
+ * Es la misma clase de error que hacía frágiles a los scripts viejos, con sus
+ * columnas fijas C/T/Y — sólo que disfrazado de constante.
+ */
+test('ninguna escritura resuelve columnas por posición en la lista', () => {
+  const sospechosos = [];
+
+  MODULOS.forEach((m) => {
+    const codigo = soloCodigo(fuente[m]);
+    ['COLUMNAS_ADMISIONES', 'COLUMNAS_EVENTOS', 'COLUMNAS_USUARIOS', 'COLUMNAS_ESTADOS', 'COLUMNAS_PLANTILLAS']
+      .forEach((lista) => {
+        // .indexOf(campo) para sacar un número de columna
+        (codigo.match(new RegExp(lista + '\\.indexOf\\([^)]*\\)', 'g')) || [])
+          .forEach((uso) => sospechosos.push(m + ': ' + uso));
+        // .map(...) para armar una fila entera en orden
+        (codigo.match(new RegExp(lista + '\\.map\\(', 'g')) || [])
+          .forEach((uso) => sospechosos.push(m + ': ' + uso + '…)'));
+      });
+  });
+
+  assert.deepStrictEqual(
+    sospechosos, [],
+    'usan la posición en la lista como número de columna:\n  ' + sospechosos.join('\n  ')
+  );
+});
+
+test('existe el resolvedor por encabezado y se usa para escribir', () => {
+  const util = fuente['util.gs'];
+  assert.ok(util.includes('function indicesDe_('), 'falta indicesDe_');
+
+  const datos = soloCodigo(fuente['datos.gs']);
+  const actualizar = datos.slice(datos.indexOf('function actualizarAdmision'));
+  assert.ok(actualizar.slice(0, 600).includes('indicesDe_(hoja)'),
+    'actualizarAdmision no resuelve por encabezado');
+});
+
+test('quien escribe una fila entera usa los encabezados reales', () => {
+  // appendRow y setValues escriben en orden físico: armar la fila desde la
+  // lista del código la desalinea si la solapa tiene otro orden.
+  const datos = soloCodigo(fuente['datos.gs']);
+  const registrar = datos.slice(datos.indexOf('function registrarEvento'));
+  assert.ok(registrar.slice(0, 900).includes('encabezados'),
+    'registrarEvento arma la fila sin mirar los encabezados');
+
+  const ingesta = soloCodigo(fuente['ingesta.gs']);
+  assert.ok(/actual\.encabezados\.map/.test(ingesta),
+    'la ingesta arma las filas sin mirar los encabezados');
+});
+
+test('una columna que falta en la solapa se saltea en vez de correr el resto', () => {
+  const datos = soloCodigo(fuente['datos.gs']);
+  const actualizar = datos.slice(datos.indexOf('function actualizarAdmision'));
+  assert.ok(actualizar.slice(0, 600).includes('if (!cols[campo]) return;'),
+    'no saltea las columnas ausentes');
+});

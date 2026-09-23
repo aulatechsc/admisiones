@@ -244,11 +244,13 @@ function sincronizarRespuestas() {
   if (!admisiones.length) return { ok: true, nuevas: 0 };
 
   var eventos = leerHoja_(hojaEventos);
-  var colMsg = COLUMNAS_EVENTOS.indexOf('message_id');
+  var colMsg = eventos.encabezados.indexOf('message_id');
   var vistos = {};
-  eventos.filas.forEach(function (f) {
-    if (f[colMsg]) vistos[f[colMsg].toString()] = true;
-  });
+  if (colMsg !== -1) {
+    eventos.filas.forEach(function (f) {
+      if (f[colMsg]) vistos[f[colMsg].toString()] = true;
+    });
+  }
 
   var nuevas = 0;
 

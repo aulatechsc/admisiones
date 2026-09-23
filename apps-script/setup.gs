@@ -68,10 +68,18 @@ function cargarEstados_(ss) {
   var hoja = ss.getSheetByName(HOJAS.ESTADOS);
   if (hoja.getLastRow() > 1) return;
 
+  // Según los encabezados reales, como en el resto del código: acá coinciden
+  // con la lista porque la solapa se acaba de crear, pero mantener una sola
+  // regla evita que mañana sea la excepción que desalinea todo.
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0]
+    .map(function (e) { return e.toString().trim(); });
+
   var filas = ESTADOS_INICIALES.map(function (e) {
-    return COLUMNAS_ESTADOS.map(function (c) { return e[c]; });
+    return encabezados.map(function (c) {
+      return (e[c] === undefined || e[c] === null) ? '' : e[c];
+    });
   });
-  hoja.getRange(2, 1, filas.length, COLUMNAS_ESTADOS.length).setValues(filas);
+  hoja.getRange(2, 1, filas.length, encabezados.length).setValues(filas);
 
   // Pinta cada fila con el color del estado, para que la planilla se lea
   // igual que el sitio.
@@ -84,13 +92,21 @@ function cargarPlantillas_(ss) {
   var hoja = ss.getSheetByName(HOJA_PLANTILLAS);
   if (hoja.getLastRow() > 1) return;
 
-  var filas = PLANTILLAS_INICIALES.map(function (p) {
-    return COLUMNAS_PLANTILLAS.map(function (c) { return p[c]; });
-  });
-  hoja.getRange(2, 1, filas.length, COLUMNAS_PLANTILLAS.length).setValues(filas);
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0]
+    .map(function (e) { return e.toString().trim(); });
 
-  hoja.setColumnWidth(COLUMNAS_PLANTILLAS.indexOf('asunto') + 1, 300);
-  hoja.setColumnWidth(COLUMNAS_PLANTILLAS.indexOf('cuerpo') + 1, 600);
+  var filas = PLANTILLAS_INICIALES.map(function (p) {
+    return encabezados.map(function (c) {
+      return (p[c] === undefined || p[c] === null) ? '' : p[c];
+    });
+  });
+  hoja.getRange(2, 1, filas.length, encabezados.length).setValues(filas);
+
+  // Ancho cómodo para los dos campos largos, ubicados por encabezado real
+  var anchos = { asunto: 300, cuerpo: 600 };
+  encabezados.forEach(function (c, i) {
+    if (anchos[c]) hoja.setColumnWidth(i + 1, anchos[c]);
+  });
 }
 
 /**
@@ -207,6 +223,64 @@ function limpiarFechas() {
   var resumen = arregladas
     ? arregladas + ' fecha(s) reescritas en dd/mm/aaaa.'
     : 'No había fechas para arreglar.';
+  console.log(resumen);
+  return resumen;
+}
+
+/**
+ * Repara los valores que quedaron en la columna equivocada.
+ *
+ * Hasta esta versión, las escrituras resolvían la columna por la posición del
+ * campo dentro de COLUMNAS_ADMISIONES, mientras que migrarEsquema() agrega
+ * las columnas nuevas al final de la solapa. En cuanto los dos órdenes
+ * dejaron de coincidir, cada campo posterior se escribió una columna corrida:
+ * el timestamp de `actualizado` terminó en `estado_previo`, y el estado
+ * anterior en `responsable`.
+ *
+ * Limpia sólo lo que es reconociblemente del tipo equivocado, para no tocar
+ * nada que alguien haya cargado a mano:
+ *
+ *   estado_previo con pinta de fecha  → se vacía
+ *   responsable con un id de estado   → se vacía
+ *
+ * Se puede correr las veces que haga falta.
+ */
+function repararColumnas() {
+  var hoja = hoja_(HOJAS.ADMISIONES);
+  var datos = leerHoja_(hoja);
+  var cols = indicesDe_(hoja);
+
+  var idsEstado = {};
+  leerEstados().forEach(function (e) { idsEstado[e.id] = true; });
+
+  var limpiados = { estado_previo: 0, responsable: 0 };
+
+  datos.filas.forEach(function (fila, i) {
+    var n = i + 2;
+
+    if (cols.estado_previo) {
+      var prev = fila[cols.estado_previo - 1];
+      var texto = (prev === null || prev === undefined) ? '' : prev.toString().trim();
+      // Un estado_previo válido es un id de estado, nunca una fecha
+      if (texto && !idsEstado[texto]) {
+        hoja.getRange(n, cols.estado_previo).setValue('');
+        limpiados.estado_previo++;
+      }
+    }
+
+    if (cols.responsable) {
+      var resp = fila[cols.responsable - 1];
+      var t = (resp === null || resp === undefined) ? '' : resp.toString().trim();
+      // Un responsable es una persona; si dice "contactada" es basura corrida
+      if (t && idsEstado[t]) {
+        hoja.getRange(n, cols.responsable).setValue('');
+        limpiados.responsable++;
+      }
+    }
+  });
+
+  var resumen = 'estado_previo: ' + limpiados.estado_previo + ' limpiados · ' +
+                'responsable: ' + limpiados.responsable + ' limpiados.';
   console.log(resumen);
   return resumen;
 }

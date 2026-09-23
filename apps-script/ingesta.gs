@@ -178,8 +178,12 @@ function importarDesdeSitio() {
 
     var origen = SpreadsheetApp.openById(ID_PLANILLA_SITIO);
     var actual = leerHoja_(destino);
-    var colHuella = COLUMNAS_ADMISIONES.indexOf('huella');
-    var colId = COLUMNAS_ADMISIONES.indexOf('id');
+    var colHuella = actual.encabezados.indexOf('huella');
+    var colId = actual.encabezados.indexOf('id');
+    if (colHuella === -1 || colId === -1) {
+      throw new Error('La solapa ' + HOJAS.ADMISIONES +
+        ' no tiene las columnas "id" y "huella". Corré migrarEsquema().');
+    }
 
     var huellasExistentes = {};
     actual.filas.forEach(function (f) {
@@ -243,13 +247,16 @@ function importarDesdeSitio() {
     });
 
     if (nuevas.length) {
+      // Según los encabezados reales de la solapa, no según COLUMNAS_ADMISIONES:
+      // migrarEsquema() agrega las columnas nuevas al final, así que los dos
+      // órdenes no tienen por qué coincidir.
       var filas = nuevas.map(function (a) {
-        return COLUMNAS_ADMISIONES.map(function (c) {
+        return actual.encabezados.map(function (c) {
           var v = a[c];
           return (v === undefined || v === null) ? '' : v;
         });
       });
-      destino.getRange(destino.getLastRow() + 1, 1, filas.length, COLUMNAS_ADMISIONES.length)
+      destino.getRange(destino.getLastRow() + 1, 1, filas.length, actual.encabezados.length)
         .setValues(filas);
 
       nuevas.forEach(function (a) {

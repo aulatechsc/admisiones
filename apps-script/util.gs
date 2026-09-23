@@ -93,6 +93,31 @@ function leerHoja_(hoja) {
   };
 }
 
+/**
+ * Mapa nombre de columna → número de columna real en la solapa (base 1).
+ *
+ * Toda escritura tiene que pasar por acá. Usar la posición dentro de
+ * COLUMNAS_* parece equivalente y no lo es: migrarEsquema() agrega las
+ * columnas nuevas al final de la solapa, mientras que en la lista del código
+ * van en su lugar lógico. En cuanto los dos órdenes dejan de coincidir, cada
+ * campo posterior se escribe una columna corrida — que fue justo el problema
+ * de los scripts viejos, con sus columnas fijas C/T/Y.
+ *
+ * Una columna que está en el código pero todavía no en la solapa queda fuera
+ * del mapa, y quien escribe la saltea en vez de pisar la de al lado.
+ */
+function indicesDe_(hoja) {
+  var encabezados = hoja.getRange(1, 1, 1, Math.max(hoja.getLastColumn(), 1))
+    .getValues()[0];
+
+  var mapa = {};
+  encabezados.forEach(function (e, i) {
+    var nombre = (e === null || e === undefined) ? '' : e.toString().trim();
+    if (nombre && !(nombre in mapa)) mapa[nombre] = i + 1;
+  });
+  return mapa;
+}
+
 /** Convierte las filas de una solapa en objetos usando sus encabezados. */
 function filasAObjetos_(encabezados, filas) {
   return filas.map(function (fila) {

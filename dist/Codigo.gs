@@ -108,6 +108,31 @@ function leerHoja_(hoja) {
   };
 }
 
+/**
+ * Mapa nombre de columna → número de columna real en la solapa (base 1).
+ *
+ * Toda escritura tiene que pasar por acá. Usar la posición dentro de
+ * COLUMNAS_* parece equivalente y no lo es: migrarEsquema() agrega las
+ * columnas nuevas al final de la solapa, mientras que en la lista del código
+ * van en su lugar lógico. En cuanto los dos órdenes dejan de coincidir, cada
+ * campo posterior se escribe una columna corrida — que fue justo el problema
+ * de los scripts viejos, con sus columnas fijas C/T/Y.
+ *
+ * Una columna que está en el código pero todavía no en la solapa queda fuera
+ * del mapa, y quien escribe la saltea en vez de pisar la de al lado.
+ */
+function indicesDe_(hoja) {
+  var encabezados = hoja.getRange(1, 1, 1, Math.max(hoja.getLastColumn(), 1))
+    .getValues()[0];
+
+  var mapa = {};
+  encabezados.forEach(function (e, i) {
+    var nombre = (e === null || e === undefined) ? '' : e.toString().trim();
+    if (nombre && !(nombre in mapa)) mapa[nombre] = i + 1;
+  });
+  return mapa;
+}
+
 /** Convierte las filas de una solapa en objetos usando sus encabezados. */
 function filasAObjetos_(encabezados, filas) {
   return filas.map(function (fila) {
@@ -938,7 +963,10 @@ function obtenerAdmision(id) {
 
 /** Fila de una admisión en la planilla, o -1. Fila 1 son los encabezados. */
 function filaDeAdmision_(hoja, id) {
-  var ids = hoja.getRange(2, COLUMNAS_ADMISIONES.indexOf('id') + 1, Math.max(hoja.getLastRow() - 1, 1), 1)
+  var colId = indicesDe_(hoja)['id'];
+  if (!colId) throw new Error('La solapa ' + HOJAS.ADMISIONES + ' no tiene columna "id".');
+
+  var ids = hoja.getRange(2, colId, Math.max(hoja.getLastRow() - 1, 1), 1)
     .getValues()
     .map(function (f) { return f[0].toString(); });
   var i = ids.indexOf(id.toString());
@@ -957,14 +985,14 @@ function actualizarAdmision(id, cambios) {
   var fila = filaDeAdmision_(hoja, id);
   if (fila === -1) throw new Error('No existe la admisión ' + id);
 
+  var cols = indicesDe_(hoja);
+
   Object.keys(cambios).forEach(function (campo) {
-    var col = COLUMNAS_ADMISIONES.indexOf(campo);
-    if (col === -1) return;
-    hoja.getRange(fila, col + 1).setValue(cambios[campo]);
+    if (!cols[campo]) return;
+    hoja.getRange(fila, cols[campo]).setValue(cambios[campo]);
   });
 
-  var colAct = COLUMNAS_ADMISIONES.indexOf('actualizado');
-  if (colAct !== -1) hoja.getRange(fila, colAct + 1).setValue(new Date().toISOString());
+  if (cols.actualizado) hoja.getRange(fila, cols.actualizado).setValue(new Date().toISOString());
 
   return obtenerAdmision(id);
 }
@@ -1054,11 +1082,11 @@ function deshacerCambioEstado(idEvento) {
     throw new Error('El estado anterior "' + estadoAnterior + '" ya no existe.');
   }
 
-  var colAnulado = COLUMNAS_EVENTOS.indexOf('anulado');
-  if (colAnulado === -1) {
+  var colAnulado = indicesDe_(hoja)['anulado'];
+  if (!colAnulado) {
     throw new Error('Falta la columna "anulado" en Eventos. Corré migrarEsquema().');
   }
-  hoja.getRange(fila, colAnulado + 1).setValue(true);
+  hoja.getRange(fila, colAnulado).setValue(true);
 
   var admision = obtenerAdmision(evento.id_admision);
   if (admision) {
@@ -1098,7 +1126,13 @@ function registrarEvento(evento) {
     var hoja = SpreadsheetApp.getActive().getSheetByName(HOJAS.EVENTOS);
     if (!hoja) return;
 
-    var fila = COLUMNAS_EVENTOS.map(function (c) {
+    // Se arma según los encabezados reales, no según COLUMNAS_EVENTOS: si la
+    // solapa tiene otro orden, appendRow escribiría cada valor corrido.
+    var encabezados = hoja.getRange(1, 1, 1, Math.max(hoja.getLastColumn(), 1))
+      .getValues()[0]
+      .map(function (e) { return (e === null || e === undefined) ? '' : e.toString().trim(); });
+
+    var fila = encabezados.map(function (c) {
       if (c === 'id') return Utilities.getUuid();
       if (c === 'timestamp') return evento.timestamp || new Date().toISOString();
       var v = evento[c];
@@ -1835,11 +1869,13 @@ function sincronizarRespuestas() {
   if (!admisiones.length) return { ok: true, nuevas: 0 };
 
   var eventos = leerHoja_(hojaEventos);
-  var colMsg = COLUMNAS_EVENTOS.indexOf('message_id');
+  var colMsg = eventos.encabezados.indexOf('message_id');
   var vistos = {};
-  eventos.filas.forEach(function (f) {
-    if (f[colMsg]) vistos[f[colMsg].toString()] = true;
-  });
+  if (colMsg !== -1) {
+    eventos.filas.forEach(function (f) {
+      if (f[colMsg]) vistos[f[colMsg].toString()] = true;
+    });
+  }
 
   var nuevas = 0;
 
@@ -2185,8 +2221,12 @@ function importarDesdeSitio() {
 
     var origen = SpreadsheetApp.openById(ID_PLANILLA_SITIO);
     var actual = leerHoja_(destino);
-    var colHuella = COLUMNAS_ADMISIONES.indexOf('huella');
-    var colId = COLUMNAS_ADMISIONES.indexOf('id');
+    var colHuella = actual.encabezados.indexOf('huella');
+    var colId = actual.encabezados.indexOf('id');
+    if (colHuella === -1 || colId === -1) {
+      throw new Error('La solapa ' + HOJAS.ADMISIONES +
+        ' no tiene las columnas "id" y "huella". Corré migrarEsquema().');
+    }
 
     var huellasExistentes = {};
     actual.filas.forEach(function (f) {
@@ -2250,13 +2290,16 @@ function importarDesdeSitio() {
     });
 
     if (nuevas.length) {
+      // Según los encabezados reales de la solapa, no según COLUMNAS_ADMISIONES:
+      // migrarEsquema() agrega las columnas nuevas al final, así que los dos
+      // órdenes no tienen por qué coincidir.
       var filas = nuevas.map(function (a) {
-        return COLUMNAS_ADMISIONES.map(function (c) {
+        return actual.encabezados.map(function (c) {
           var v = a[c];
           return (v === undefined || v === null) ? '' : v;
         });
       });
-      destino.getRange(destino.getLastRow() + 1, 1, filas.length, COLUMNAS_ADMISIONES.length)
+      destino.getRange(destino.getLastRow() + 1, 1, filas.length, actual.encabezados.length)
         .setValues(filas);
 
       nuevas.forEach(function (a) {
@@ -2672,10 +2715,18 @@ function cargarEstados_(ss) {
   var hoja = ss.getSheetByName(HOJAS.ESTADOS);
   if (hoja.getLastRow() > 1) return;
 
+  // Según los encabezados reales, como en el resto del código: acá coinciden
+  // con la lista porque la solapa se acaba de crear, pero mantener una sola
+  // regla evita que mañana sea la excepción que desalinea todo.
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0]
+    .map(function (e) { return e.toString().trim(); });
+
   var filas = ESTADOS_INICIALES.map(function (e) {
-    return COLUMNAS_ESTADOS.map(function (c) { return e[c]; });
+    return encabezados.map(function (c) {
+      return (e[c] === undefined || e[c] === null) ? '' : e[c];
+    });
   });
-  hoja.getRange(2, 1, filas.length, COLUMNAS_ESTADOS.length).setValues(filas);
+  hoja.getRange(2, 1, filas.length, encabezados.length).setValues(filas);
 
   // Pinta cada fila con el color del estado, para que la planilla se lea
   // igual que el sitio.
@@ -2688,13 +2739,21 @@ function cargarPlantillas_(ss) {
   var hoja = ss.getSheetByName(HOJA_PLANTILLAS);
   if (hoja.getLastRow() > 1) return;
 
-  var filas = PLANTILLAS_INICIALES.map(function (p) {
-    return COLUMNAS_PLANTILLAS.map(function (c) { return p[c]; });
-  });
-  hoja.getRange(2, 1, filas.length, COLUMNAS_PLANTILLAS.length).setValues(filas);
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0]
+    .map(function (e) { return e.toString().trim(); });
 
-  hoja.setColumnWidth(COLUMNAS_PLANTILLAS.indexOf('asunto') + 1, 300);
-  hoja.setColumnWidth(COLUMNAS_PLANTILLAS.indexOf('cuerpo') + 1, 600);
+  var filas = PLANTILLAS_INICIALES.map(function (p) {
+    return encabezados.map(function (c) {
+      return (p[c] === undefined || p[c] === null) ? '' : p[c];
+    });
+  });
+  hoja.getRange(2, 1, filas.length, encabezados.length).setValues(filas);
+
+  // Ancho cómodo para los dos campos largos, ubicados por encabezado real
+  var anchos = { asunto: 300, cuerpo: 600 };
+  encabezados.forEach(function (c, i) {
+    if (anchos[c]) hoja.setColumnWidth(i + 1, anchos[c]);
+  });
 }
 
 /**
@@ -2811,6 +2870,64 @@ function limpiarFechas() {
   var resumen = arregladas
     ? arregladas + ' fecha(s) reescritas en dd/mm/aaaa.'
     : 'No había fechas para arreglar.';
+  console.log(resumen);
+  return resumen;
+}
+
+/**
+ * Repara los valores que quedaron en la columna equivocada.
+ *
+ * Hasta esta versión, las escrituras resolvían la columna por la posición del
+ * campo dentro de COLUMNAS_ADMISIONES, mientras que migrarEsquema() agrega
+ * las columnas nuevas al final de la solapa. En cuanto los dos órdenes
+ * dejaron de coincidir, cada campo posterior se escribió una columna corrida:
+ * el timestamp de `actualizado` terminó en `estado_previo`, y el estado
+ * anterior en `responsable`.
+ *
+ * Limpia sólo lo que es reconociblemente del tipo equivocado, para no tocar
+ * nada que alguien haya cargado a mano:
+ *
+ *   estado_previo con pinta de fecha  → se vacía
+ *   responsable con un id de estado   → se vacía
+ *
+ * Se puede correr las veces que haga falta.
+ */
+function repararColumnas() {
+  var hoja = hoja_(HOJAS.ADMISIONES);
+  var datos = leerHoja_(hoja);
+  var cols = indicesDe_(hoja);
+
+  var idsEstado = {};
+  leerEstados().forEach(function (e) { idsEstado[e.id] = true; });
+
+  var limpiados = { estado_previo: 0, responsable: 0 };
+
+  datos.filas.forEach(function (fila, i) {
+    var n = i + 2;
+
+    if (cols.estado_previo) {
+      var prev = fila[cols.estado_previo - 1];
+      var texto = (prev === null || prev === undefined) ? '' : prev.toString().trim();
+      // Un estado_previo válido es un id de estado, nunca una fecha
+      if (texto && !idsEstado[texto]) {
+        hoja.getRange(n, cols.estado_previo).setValue('');
+        limpiados.estado_previo++;
+      }
+    }
+
+    if (cols.responsable) {
+      var resp = fila[cols.responsable - 1];
+      var t = (resp === null || resp === undefined) ? '' : resp.toString().trim();
+      // Un responsable es una persona; si dice "contactada" es basura corrida
+      if (t && idsEstado[t]) {
+        hoja.getRange(n, cols.responsable).setValue('');
+        limpiados.responsable++;
+      }
+    }
+  });
+
+  var resumen = 'estado_previo: ' + limpiados.estado_previo + ' limpiados · ' +
+                'responsable: ' + limpiados.responsable + ' limpiados.';
   console.log(resumen);
   return resumen;
 }
