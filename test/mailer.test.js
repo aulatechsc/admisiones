@@ -184,7 +184,14 @@ test('calcularEdad tolera lo que no es fecha', () => {
   assert.strictEqual(M.calcularEdad('', new Date()), '');
   assert.strictEqual(M.calcularEdad(null, new Date()), '');
   assert.strictEqual(M.calcularEdad('no es fecha', new Date()), '');
-  assert.strictEqual(M.calcularEdad('2021-07-03', new Date()), '');
+});
+
+test('calcularEdad acepta también fechas ISO', () => {
+  // Las planillas mezclan formatos: el formulario del sitio escribe
+  // dd/mm/aaaa y las columnas de fecha nativas vuelven como ISO.
+  const ref = new Date(2026, 8, 23);
+  assert.strictEqual(M.calcularEdad('2021-07-03', ref), '5');
+  assert.strictEqual(M.calcularEdad('03/07/2021', ref), '5');
 });
 
 test('mostrarFecha deja pasar el texto ya formateado', () => {

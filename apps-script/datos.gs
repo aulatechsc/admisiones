@@ -36,7 +36,69 @@ function leerAdmisiones(filtros) {
     });
   }
 
+  // Las más nuevas arriba: es el orden en que se trabaja, porque lo que entró
+  // hoy es lo que todavía no contestó nadie.
+  todas.sort(function (x, y) {
+    var fx = aFecha(x.fecha_alta), fy = aFecha(y.fecha_alta);
+    if (!fx && !fy) return 0;
+    if (!fx) return 1;
+    if (!fy) return -1;
+    return fy.getTime() - fx.getTime();
+  });
+
   return todas;
+}
+
+/**
+ * Hace cuánto que una admisión está esperando algo, y de quién.
+ *
+ * No alcanza con "días desde el alta": una familia a la que le escribimos
+ * ayer y otra que nos respondió hace una semana necesitan cosas distintas.
+ * Distingue tres situaciones:
+ *
+ *   sin_contactar  — entró y todavía nadie le escribió
+ *   esperando      — le escribimos y no contestó
+ *   nos_responden  — contestó y la pelota está de nuestro lado
+ *
+ * Una admisión en estado terminal (matriculada, sin vacante, desistió) no
+ * espera nada, así que no muestra contador.
+ */
+function calcularEspera(admision, eventos, ahora) {
+  var terminales = { matriculada: 1, sin_vacante: 1, desistio: 1 };
+  if (terminales[admision.estado]) return { tipo: 'cerrada', dias: null };
+
+  var ultimoNuestro = null;
+  var ultimoDeEllos = null;
+
+  (eventos || []).forEach(function (e) {
+    var f = aFecha(e.timestamp);
+    if (!f) return;
+    if (e.tipo === 'mail_enviado') {
+      if (!ultimoNuestro || f > ultimoNuestro) ultimoNuestro = f;
+    } else if (e.tipo === 'mail_recibido') {
+      if (!ultimoDeEllos || f > ultimoDeEllos) ultimoDeEllos = f;
+    }
+  });
+
+  if (!ultimoNuestro && !ultimoDeEllos) {
+    return { tipo: 'sin_contactar', dias: diasEntre(admision.fecha_alta, ahora) };
+  }
+  if (ultimoDeEllos && (!ultimoNuestro || ultimoDeEllos > ultimoNuestro)) {
+    return { tipo: 'nos_responden', dias: diasEntre(ultimoDeEllos, ahora) };
+  }
+  return { tipo: 'esperando', dias: diasEntre(ultimoNuestro, ahora) };
+}
+
+/** Todos los eventos agrupados por admisión, en una sola lectura. */
+function eventosPorAdmision() {
+  var datos = leerHoja_(hoja_(HOJAS.EVENTOS));
+  var mapa = {};
+  filasAObjetos_(datos.encabezados, datos.filas).forEach(function (e) {
+    if (!e.id_admision) return;
+    if (!mapa[e.id_admision]) mapa[e.id_admision] = [];
+    mapa[e.id_admision].push(e);
+  });
+  return mapa;
 }
 
 function obtenerAdmision(id) {

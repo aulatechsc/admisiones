@@ -104,11 +104,68 @@ function filasAObjetos_(encabezados, filas) {
   });
 }
 
+
+// ───────────────────────────────────────────────────────────────────
+// Fechas
+// ───────────────────────────────────────────────────────────────────
+
+/**
+ * Interpreta las fechas que guardan las planillas: Date, dd/mm/aaaa (lo que
+ * escribe el formulario del sitio) o ISO. Devuelve null si no es ninguna.
+ */
+function aFecha(valor) {
+  if (!valor) return null;
+  if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor;
+
+  var t = valor.toString().trim();
+  if (t === '') return null;
+
+  var m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) {
+    var d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  var iso = new Date(t);
+  return isNaN(iso.getTime()) ? null : iso;
+}
+
+/**
+ * Edad en años a la fecha de referencia.
+ * Se calcula al vuelo en vez de guardarse: una edad guardada envejece mal, y
+ * la planilla vieja tiene una columna "Edad Actual" que ya no es cierta.
+ */
+function calcularEdad(fechaNac, referencia) {
+  var d = aFecha(fechaNac);
+  if (!d) return '';
+
+  var hoy = referencia || new Date();
+  var edad = hoy.getFullYear() - d.getFullYear();
+  var mes = hoy.getMonth() - d.getMonth();
+  if (mes < 0 || (mes === 0 && hoy.getDate() < d.getDate())) edad--;
+
+  return edad < 0 ? '' : edad.toString();
+}
+
+/** Días enteros entre dos fechas, ignorando la hora. */
+function diasEntre(desde, hasta) {
+  var a = aFecha(desde);
+  if (!a) return null;
+  var b = hasta || new Date();
+
+  var ua = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  var ub = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((ub - ua) / 86400000);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   Object.assign(module.exports, {
     aBooleano: aBooleano,
     aNumero: aNumero,
     normalizarFecha: normalizarFecha,
-    normalizarParaComparar: normalizarParaComparar
+    normalizarParaComparar: normalizarParaComparar,
+    aFecha: aFecha,
+    calcularEdad: calcularEdad,
+    diasEntre: diasEntre
   });
 }

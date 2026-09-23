@@ -128,21 +128,68 @@ body {
 main { max-width: 1160px; margin: 0 auto; padding: 22px 20px 60px; }
 
 .controles { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.chip {
-  padding: 5px 12px; border-radius: 999px;
-  border: 1px solid var(--linea-fuerte); background: var(--superficie);
-  color: var(--texto-medio); font-size: 13px; font-weight: 500;
-  cursor: pointer; transition: var(--transicion); white-space: nowrap;
-}
-.chip:hover { border-color: var(--texto-suave); color: var(--texto); }
-.chip[aria-pressed="true"] {
-  background: var(--marca); border-color: var(--marca); color: #fff;
-}
-:root[data-theme="dark"] .chip[aria-pressed="true"],
-html:not([data-theme="light"]) .chip[aria-pressed="true"] { color: #0d1117; }
-
+.resumen { color: var(--texto-suave); font-size: 13px; }
+.resumen b { color: var(--texto); font-weight: 600; }
 .acciones-barra { margin-left: auto; display: flex; gap: 8px; }
+
+/* ─── Días de espera ─── */
+.espera {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 550; white-space: nowrap;
+  padding: 3px 9px; border-radius: 999px;
+}
+.espera svg { width: 12px; height: 12px; }
+.espera.tranquilo { background: var(--gris-bg);   color: var(--gris); }
+.espera.atencion  { background: var(--ambar-bg);  color: var(--ambar); }
+.espera.urgente   { background: var(--rojo-bg);   color: var(--rojo); }
+.espera.nuestra   { background: var(--violeta-bg);color: var(--violeta); }
+
+/* ─── Checkpoints del recorrido ─── */
+.pasos { display: flex; align-items: flex-start; gap: 0; overflow-x: auto; padding: 4px 0 2px; }
+.paso {
+  flex: 1; min-width: 78px; background: none; border: none; padding: 0;
+  cursor: pointer; text-align: center; position: relative;
+  font: inherit; color: var(--texto-suave); transition: var(--transicion);
+}
+.paso::before {
+  content: ''; position: absolute; top: 10px; left: -50%; width: 100%;
+  height: 2px; background: var(--linea); z-index: 0;
+}
+.paso:first-child::before { display: none; }
+.paso .bolita {
+  position: relative; z-index: 1; margin: 0 auto 6px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--superficie); border: 2px solid var(--linea-fuerte);
+  display: grid; place-items: center; transition: var(--transicion);
+}
+.paso .bolita svg { width: 11px; height: 11px; opacity: 0; transition: var(--transicion); }
+.paso .rotulo { font-size: 11px; line-height: 1.25; font-weight: 500; padding: 0 3px; display: block; }
+
+.paso.hecho::before { background: var(--verde); }
+.paso.hecho .bolita { background: var(--verde); border-color: var(--verde); color: #fff; }
+.paso.hecho .bolita svg { opacity: 1; }
+.paso.hecho .rotulo { color: var(--texto-medio); }
+
+.paso.actual .bolita {
+  background: var(--marca); border-color: var(--marca); color: #fff;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--marca) 20%, transparent);
+  transform: scale(1.12);
+}
+.paso.actual .rotulo { color: var(--texto); font-weight: 650; }
+
+.paso:hover:not(.actual) .bolita { border-color: var(--marca); }
+.paso:hover .rotulo { color: var(--texto); }
+
+.ramas { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--linea); }
+.rama {
+  padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500;
+  border: 1px solid var(--linea-fuerte); background: var(--superficie);
+  color: var(--texto-medio); cursor: pointer; transition: var(--transicion);
+}
+.rama:hover { border-color: var(--texto-suave); color: var(--texto); }
+.rama.activa-lista_espera { background: var(--gris-bg); color: var(--gris); border-color: var(--gris); font-weight: 650; }
+.rama.activa-sin_vacante  { background: var(--rojo-bg); color: var(--rojo); border-color: var(--rojo); font-weight: 650; }
+.rama.activa-desistio     { background: var(--gris-bg); color: var(--gris); border-color: var(--gris); font-weight: 650; }
 
 button, select {
   font: inherit; color: var(--texto);
@@ -452,8 +499,7 @@ code {
 
 <main>
   <div class="controles">
-    <div class="chips" id="chipsEstado"></div>
-    <select id="filtroAnio" aria-label="Año de vacante"><option value="">Todos los años</option></select>
+    <div id="resumen" class="resumen"></div>
     <div class="acciones-barra">
       <button id="btnImportar">Importar del sitio</button>
       <button id="btnPlantillas">Plantillas</button>
@@ -542,16 +588,30 @@ function nombreEstado(id) {
   return id || '—';
 }
 
-function fecha(iso) {
-  if (!iso) return '';
-  var d = new Date(iso);
-  if (isNaN(d.getTime())) return String(iso);
+/** Acepta ISO o dd/mm/aaaa, que es como escribe el formulario del sitio. */
+function aFecha(valor) {
+  if (!valor) return null;
+  var t = String(valor).trim();
+  var m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  var d = m ? new Date(+m[3], +m[2] - 1, +m[1]) : new Date(t);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function fecha(valor) {
+  var d = aFecha(valor);
+  if (!d) return valor ? String(valor) : '';
   var hoy = new Date();
-  var mismoDia = d.toDateString() === hoy.toDateString();
   var hora = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  if (mismoDia) return 'Hoy ' + hora;
+  if (d.toDateString() === hoy.toDateString()) return 'Hoy ' + hora;
   return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) +
          (d.getFullYear() !== hoy.getFullYear() ? ' ' + d.getFullYear() : '') + ', ' + hora;
+}
+
+/** Fecha en que la familia completó el formulario, sin hora. */
+function fechaCorta(valor) {
+  var d = aFecha(valor);
+  if (!d) return '—';
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function iniciales(nombre) {
@@ -574,24 +634,6 @@ function arrancar() {
     document.getElementById('uNiveles').textContent =
       sesion.rol === 'admin' ? 'Todos los niveles' : sesion.niveles.join(' · ');
     document.getElementById('uAvatar').textContent = iniciales(sesion.nombre || sesion.email);
-
-    var chips = ['<button class="chip" data-estado="" aria-pressed="true">Todas</button>'];
-    estados.forEach(function (e) {
-      chips.push('<button class="chip" data-estado="' + esc(e.id) + '" aria-pressed="false">' +
-        esc(e.nombre) + '</button>');
-    });
-    document.getElementById('chipsEstado').innerHTML = chips.join('');
-
-    Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (c) {
-      c.onclick = function () {
-        Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (o) {
-          o.setAttribute('aria-pressed', o === c ? 'true' : 'false');
-        });
-        filtros.estado = c.dataset.estado;
-        cargar();
-      };
-    });
-
     document.getElementById('login').classList.remove('visible');
     cargar();
   }).catch(function (e) {
@@ -608,45 +650,77 @@ function cargar() {
   api('listar', filtros).then(function (r) {
     if (!r.ok) { lista.innerHTML = aviso(r.error, 'mal'); return; }
     admisiones = r.admisiones;
-    poblarAnios();
     pintarLista();
   }).catch(function (e) { lista.innerHTML = aviso(e.message, 'mal'); });
 }
 
-function poblarAnios() {
-  var sel = document.getElementById('filtroAnio');
-  if (sel.dataset.listo) return;
-  var vistos = {};
-  admisiones.forEach(function (a) { if (a.anio_vacante) vistos[a.anio_vacante] = true; });
-  Object.keys(vistos).sort().forEach(function (a) {
-    sel.insertAdjacentHTML('beforeend', '<option value="' + esc(a) + '">Ciclo ' + esc(a) + '</option>');
-  });
-  sel.dataset.listo = '1';
+/**
+ * Cuán urgente es una espera. Las tres situaciones tienen umbrales distintos
+ * a propósito: que una familia nos haya respondido y no le contestemos es
+ * peor que estar esperando que conteste ella.
+ */
+function urgencia(espera) {
+  if (!espera || espera.dias === null || espera.dias === undefined) return null;
+  var d = espera.dias;
+
+  if (espera.tipo === 'nos_responden') return d >= 1 ? 'nuestra' : 'tranquilo';
+  if (espera.tipo === 'sin_contactar') return d >= 3 ? 'urgente' : (d >= 1 ? 'atencion' : 'tranquilo');
+  if (espera.tipo === 'esperando')     return d >= 8 ? 'urgente' : (d >= 3 ? 'atencion' : 'tranquilo');
+  return null;
+}
+
+var RELOJ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+
+function textoEspera(espera) {
+  var nivel = urgencia(espera);
+  if (!nivel) return '';
+
+  var d = espera.dias;
+  var cuanto = d === 0 ? 'hoy' : (d === 1 ? '1 día' : d + ' días');
+  var que = {
+    sin_contactar: 'sin contactar',
+    esperando: 'esperando respuesta',
+    nos_responden: 'respondieron hace'
+  }[espera.tipo];
+
+  var texto = espera.tipo === 'nos_responden'
+    ? 'Respondieron hace ' + cuanto
+    : cuanto + ' ' + que;
+
+  return '<span class="espera ' + nivel + '" title="' + esc(texto) + '">' +
+    RELOJ + esc(d === 0 ? 'Hoy' : d + 'd') + '</span>';
 }
 
 function pintarLista() {
   var lista = document.getElementById('lista');
 
+  var pendientes = admisiones.filter(function (a) { return urgencia(a.espera) === 'urgente' || urgencia(a.espera) === 'nuestra'; });
+  document.getElementById('resumen').innerHTML = admisiones.length
+    ? '<b>' + admisiones.length + '</b> admisiones' +
+      (pendientes.length ? ' · <b>' + pendientes.length + '</b> necesitan atención' : '')
+    : '';
+
   if (!admisiones.length) {
     lista.innerHTML = '<div class="vacio">' + ICO.vacio +
-      '<p>No hay admisiones que coincidan con el filtro.</p></div>';
+      '<p>No hay admisiones todavía. Probá con “Importar del sitio”.</p></div>';
     return;
   }
 
   lista.innerHTML = '<div class="grilla">' + admisiones.map(function (a) {
     return '<article class="tarjeta" data-id="' + esc(a.id) + '" tabindex="0">' +
       '<div class="principal">' +
-        '<div class="nombre">' + esc(a.alumno_nombre) +
+        '<div class="meta" style="margin:0 0 3px">' +
+          '<span>' + esc(fechaCorta(a.fecha_alta)) + '</span>' +
           '<span class="nivel">' + esc(a.nivel) + '</span>' +
           (esVerdadero(a.inclusion_solicitada)
             ? '<span class="marca-inclusion">inclusión</span>' : '') +
         '</div>' +
-        '<div class="meta">' +
-          '<span>' + esc(a.grado_solicitado || '—') + '</span><span class="punto">·</span>' +
-          '<span>Ciclo ' + esc(a.anio_vacante || '—') + '</span>' +
-          (a.tutor1_nombre ? '<span class="punto">·</span><span>' + esc(a.tutor1_nombre) + '</span>' : '') +
+        '<div class="nombre">' + esc(a.alumno_nombre) +
+          '<span style="font-weight:400;color:var(--texto-suave)"> — ' +
+            esc(a.grado_solicitado || '—') + ' — ' + esc(a.anio_vacante || '—') + '</span>' +
         '</div>' +
       '</div>' +
+      textoEspera(a.espera) +
       '<span class="estado e-' + esc(a.estado) + '">' + esc(nombreEstado(a.estado)) + '</span>' +
     '</article>';
   }).join('') + '</div>';
@@ -695,11 +769,6 @@ function pintarPanel(a, eventos) {
   var inc = a.inclusion_solicitada;
   var valorInc = esVerdadero(inc) ? 'si' : (inc === false || inc === 'FALSE' ? 'no' : '');
 
-  var opcEstado = estados.map(function (e) {
-    return '<option value="' + esc(e.id) + '"' + (e.id === a.estado ? ' selected' : '') + '>' +
-      esc(e.nombre) + '</option>';
-  }).join('');
-
   document.getElementById('panel').innerHTML =
     '<div class="panel-cabeza">' +
       '<div class="fila">' +
@@ -722,24 +791,17 @@ function pintarPanel(a, eventos) {
         : '') +
 
       '<div class="seccion">' +
-        '<h3>Acciones</h3>' +
-        '<div class="botonera">' +
-          '<button class="primario" id="bMail">Enviar mail</button>' +
-          '<button id="bLlamada">Registrar llamada</button>' +
-          '<button id="bNota">Agregar nota</button>' +
-          '<button id="bFicha">Generar ficha</button>' +
-          (a.pdf_url ? '<button onclick="window.open(\'' + esc(a.pdf_url) + '\',\'_blank\')">Ver ficha</button>' : '') +
-        '</div>' +
+        '<h3>Recorrido de la admisión</h3>' +
+        '<div class="bloque">' + pintarPasos(a) + '</div>' +
       '</div>' +
 
       '<div class="seccion">' +
-        '<h3>Estado</h3>' +
-        '<div class="bloque">' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-            '<select id="selEstado" style="flex:1;min-width:150px">' + opcEstado + '</select>' +
-            '<input id="notaEstado" placeholder="Nota (opcional)" style="flex:2;min-width:150px;padding:7px 10px;border:1px solid var(--linea-fuerte);border-radius:var(--r-m);background:var(--superficie-alta);color:var(--texto);font:inherit">' +
-            '<button id="bEstado">Guardar</button>' +
-          '</div>' +
+        '<h3>Acciones</h3>' +
+        '<div class="botonera">' +
+          '<button class="primario" id="bMail">Enviar mail</button>' +
+          '<button id="bNota">Agregar nota</button>' +
+          '<button id="bFicha">Generar ficha</button>' +
+          (a.pdf_url ? '<button onclick="window.open(\'' + esc(a.pdf_url) + '\',\'_blank\')">Ver ficha</button>' : '') +
         '</div>' +
       '</div>' +
 
@@ -773,13 +835,12 @@ function pintarPanel(a, eventos) {
       '</div>' +
     '</div>';
 
-  document.getElementById('bEstado').onclick = function () {
-    accion('cambiarEstado', {
-      id: a.id,
-      estado: document.getElementById('selEstado').value,
-      nota: document.getElementById('notaEstado').value
-    }, a.id, 'Estado actualizado');
-  };
+  Array.prototype.forEach.call(document.querySelectorAll('#panel [data-ir-a]'), function (b) {
+    b.onclick = function () {
+      accion('cambiarEstado', { id: a.id, estado: b.dataset.irA },
+        a.id, 'Marcado como ' + nombreEstado(b.dataset.irA));
+    };
+  });
 
   document.getElementById('bGuardar').onclick = function () {
     var cambios = {};
@@ -795,11 +856,6 @@ function pintarPanel(a, eventos) {
   };
 
   document.getElementById('bMail').onclick = function () { abrirMail(a.id); };
-
-  document.getElementById('bLlamada').onclick = function () {
-    var d = prompt('¿Qué se habló en la llamada?');
-    if (d) accion('registrarLlamada', { id: a.id, detalle: d }, a.id, 'Llamada registrada');
-  };
 
   document.getElementById('bNota').onclick = function () {
     var t = prompt('Nota interna:');
@@ -820,6 +876,45 @@ function pintarPanel(a, eventos) {
       window.open(r.resultado.url, '_blank');
     });
   };
+}
+
+/**
+ * Checkpoints del recorrido.
+ *
+ * Los estados con orden hasta 60 son el camino normal y se dibujan como
+ * pasos; los de 70 en adelante son desvíos (lista de espera, sin vacante,
+ * desistió) y van aparte, porque no forman una secuencia.
+ *
+ * Todo lo anterior al estado actual se pinta como cumplido, así se ve de un
+ * vistazo dónde está la familia sin tener que leer el historial.
+ */
+var ORDEN_MAXIMO_FLUJO = 60;
+
+function pintarPasos(a) {
+  var flujo = estados.filter(function (e) { return Number(e.orden) <= ORDEN_MAXIMO_FLUJO; });
+  var ramas = estados.filter(function (e) { return Number(e.orden) > ORDEN_MAXIMO_FLUJO; });
+
+  var actual = -1;
+  flujo.forEach(function (e, i) { if (e.id === a.estado) actual = i; });
+
+  var tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="m20 6-11 11-5-5"/></svg>';
+
+  var pasos = flujo.map(function (e, i) {
+    var clase = i < actual ? 'hecho' : (i === actual ? 'actual' : '');
+    return '<button class="paso ' + clase + '" data-ir-a="' + esc(e.id) + '" ' +
+      'title="Marcar como ' + esc(e.nombre) + '">' +
+      '<span class="bolita">' + tick + '</span>' +
+      '<span class="rotulo">' + esc(e.nombre) + '</span>' +
+    '</button>';
+  }).join('');
+
+  var desvios = ramas.map(function (e) {
+    return '<button class="rama ' + (e.id === a.estado ? 'activa-' + esc(e.id) : '') + '" ' +
+      'data-ir-a="' + esc(e.id) + '">' + esc(e.nombre) + '</button>';
+  }).join('');
+
+  return '<div class="pasos">' + pasos + '</div>' +
+    (desvios ? '<div class="ramas">' + desvios + '</div>' : '');
 }
 
 var NOMBRE_EVENTO = {
@@ -1042,11 +1137,6 @@ document.getElementById('buscar').oninput = function () {
   filtros.texto = this.value.trim();
   clearTimeout(tecleo);
   tecleo = setTimeout(cargar, 320);
-};
-
-document.getElementById('filtroAnio').onchange = function () {
-  filtros.anio = this.value;
-  cargar();
 };
 
 document.getElementById('btnPlantillas').onclick = abrirPlantillas;

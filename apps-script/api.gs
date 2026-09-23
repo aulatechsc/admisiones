@@ -186,13 +186,29 @@ function nivelesDe(usuario) {
   return usuario.rol === 'admin' ? NIVELES : usuario.niveles;
 }
 
+/**
+ * Lista las admisiones del usuario con el contador de espera ya calculado.
+ *
+ * Los eventos se leen una sola vez y se agrupan en memoria: pedirlos por
+ * admisión sería una lectura de planilla por fila, y con 300 admisiones eso
+ * agota el tiempo de ejecución de Apps Script.
+ */
 function listarPara(usuario, filtros) {
   filtros = filtros || {};
-  return leerAdmisiones({
+
+  var lista = leerAdmisiones({
     niveles: nivelesDe(usuario),
     estado: filtros.estado,
     anio: filtros.anio,
     texto: filtros.texto
+  });
+
+  var porAdmision = eventosPorAdmision();
+  var ahora = new Date();
+
+  return lista.map(function (a) {
+    a.espera = calcularEspera(a, porAdmision[a.id] || [], ahora);
+    return a;
   });
 }
 

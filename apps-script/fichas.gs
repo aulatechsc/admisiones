@@ -1,12 +1,16 @@
 /**
  * Ficha de admisión en PDF.
  *
- * Toma el diseño que ya usaba Inicial y lo parametriza por nivel, así
- * Primaria y Secundaria generan la misma ficha con sus propias etiquetas
- * ("sala" vs "grado" vs "curso", "jardín anterior" vs "colegio anterior").
+ * Réplica exacta de la ficha que generaba el script de Inicial, parametrizada
+ * por nivel sólo en las etiquetas: "sala" contra "grado" contra "curso",
+ * "jardín anterior" contra "colegio anterior".
  *
- * Los PDF van a una carpeta de Drive y no a la raíz, y el link queda guardado
- * en la admisión para poder volver a abrirlo sin regenerarlo.
+ * Sin campos de más. Una versión anterior sumaba edad, inclusión, trayectoria
+ * y bilingüe, y eso desarmaba el layout: la ficha se imprime y se completa a
+ * mano en la entrevista, así que el orden y el espacio en blanco son parte
+ * del diseño, no un detalle estético.
+ *
+ * Los PDF van a una carpeta de Drive y el link queda guardado en la admisión.
  */
 
 var CARPETA_FICHAS = 'Fichas de admisión';
@@ -18,52 +22,27 @@ var BLANCO = '#ffffff';
 
 var ID_LOGO = '1IB4CJ_4RANoRyca47bVEMdsvzvzzx_CD';
 
-var PIE = 'Colegio San Carlos Diálogos  ·  Ficha confidencial de uso interno  ·  www.sancarlos.edu.ar';
-
-/**
- * Qué cambia en la ficha según el nivel. El resto del layout es común.
- * `extra` son filas propias del nivel que no existen en los otros.
- */
+/** Lo único que cambia entre niveles. El resto del layout es idéntico. */
 var FICHA_POR_NIVEL = {
   Inicial: {
     titulo: 'DATOS DEL NIÑO / A',
     etiquetaGrado: 'SALA SOLICITADA',
     etiquetaEscuela: 'JARDÍN ANTERIOR',
-    pie: 'Jardín San Carlos Diálogos  ·  Ficha confidencial de uso interno  ·  www.sancarlos.edu.ar',
-    extra: []
+    pie: 'Jardín San Carlos Diálogos  ·  Ficha confidencial de uso interno  ·  www.sancarlos.edu.ar'
   },
   Primaria: {
     titulo: 'DATOS DEL ALUMNO / A',
     etiquetaGrado: 'GRADO SOLICITADO',
     etiquetaEscuela: 'COLEGIO ANTERIOR',
-    pie: PIE,
-    extra: [
-      { etiq: 'GRADO ACTUAL', campo: 'grado_actual' },
-      { etiq: 'COLEGIO BILINGÜE', campo: 'bilingue', tipo: 'booleano' }
-    ]
+    pie: 'Colegio San Carlos Diálogos  ·  Ficha confidencial de uso interno  ·  www.sancarlos.edu.ar'
   },
   Secundaria: {
     titulo: 'DATOS DEL / DE LA ESTUDIANTE',
     etiquetaGrado: 'CURSO SOLICITADO',
     etiquetaEscuela: 'COLEGIO ANTERIOR',
-    pie: PIE,
-    extra: [
-      { etiq: 'CURSO ACTUAL', campo: 'grado_actual' },
-      { etiq: 'COLEGIO BILINGÜE', campo: 'bilingue', tipo: 'booleano' }
-    ]
+    pie: 'Colegio San Carlos Diálogos  ·  Ficha confidencial de uso interno  ·  www.sancarlos.edu.ar'
   }
 };
-
-// ───────────────────────────────────────────────────────────────────
-// Formato (puro)
-// ───────────────────────────────────────────────────────────────────
-
-/** Muestra un booleano como Sí/No, y deja vacío lo que no se sabe. */
-function mostrarBooleano(valor) {
-  var b = aBooleano(valor);
-  if (b === null) return '';
-  return b ? 'Sí' : 'No';
-}
 
 /** Formatea una fecha para la ficha, venga como Date o como texto. */
 function mostrarFecha(valor) {
@@ -74,35 +53,12 @@ function mostrarFecha(valor) {
   return valor.toString().trim();
 }
 
-/**
- * Edad en años a la fecha de referencia.
- * Se calcula al vuelo en vez de guardarse, porque una edad guardada envejece
- * mal: la planilla vieja tiene una columna "Edad Actual" que ya no es cierta.
- */
-function calcularEdad(fechaNac, referencia) {
-  if (!fechaNac) return '';
-
-  var d;
-  if (fechaNac instanceof Date) {
-    d = fechaNac;
-  } else {
-    var m = fechaNac.toString().trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!m) return '';
-    d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-  }
-  if (isNaN(d.getTime())) return '';
-
-  var hoy = referencia || new Date();
-  var edad = hoy.getFullYear() - d.getFullYear();
-  var mes = hoy.getMonth() - d.getMonth();
-  if (mes < 0 || (mes === 0 && hoy.getDate() < d.getDate())) edad--;
-
-  return edad < 0 ? '' : edad.toString();
+/** Muestra un booleano como Sí/No, y deja vacío lo que no se sabe. */
+function mostrarBooleano(valor) {
+  var b = aBooleano(valor);
+  if (b === null) return '';
+  return b ? 'Sí' : 'No';
 }
-
-// ───────────────────────────────────────────────────────────────────
-// Generación
-// ───────────────────────────────────────────────────────────────────
 
 function estiloCelda_(celda, bg, color, tam, negrita, italica, texto, alineacion) {
   celda.setBackgroundColor(bg);
@@ -151,18 +107,6 @@ function generarFicha(idAdmision) {
     p.editAsText().setFontSize(px).setBackgroundColor(null);
   }
 
-  function banda(texto, tam, negrita, italica, padTop, padBottom) {
-    var t = body.appendTable([[texto]]);
-    t.setBorderColor(AZUL);
-    t.setBorderWidth(0);
-    var c = t.getRow(0).getCell(0);
-    estiloCelda_(c, AZUL_CLARO, AZUL, tam, negrita, italica, texto,
-      DocumentApp.HorizontalAlignment.CENTER);
-    c.setPaddingTop(padTop).setPaddingBottom(padBottom);
-    c.editAsText().setBackgroundColor(null);
-    t.setAttributes({ [DocumentApp.Attribute.SPACING_AFTER]: 0 });
-  }
-
   function tituloSeccion(texto) {
     var t = body.appendTable([[texto]]);
     t.setBorderColor(AZUL);
@@ -195,66 +139,71 @@ function generarFicha(idAdmision) {
     t.setAttributes({ [DocumentApp.Attribute.SPACING_AFTER]: 0 });
   }
 
-  function cajaLibre(alto) {
+  function cajaObs() {
     var t = body.appendTable([['']]);
     t.setBorderColor(BORDE);
     var c = t.getRow(0).getCell(0);
     c.setBackgroundColor(BLANCO);
-    c.setPaddingTop(alto).setPaddingBottom(alto).setPaddingLeft(4).setPaddingRight(4);
+    c.setPaddingTop(30).setPaddingBottom(30).setPaddingLeft(4).setPaddingRight(4);
     c.editAsText().setText('').setBackgroundColor(null);
     t.setAttributes({ [DocumentApp.Attribute.SPACING_AFTER]: 0 });
   }
 
-  // Logo — si falla, la ficha sale igual
+  // ── Logo ── si falla, la ficha sale igual
   try {
-    var logo = DriveApp.getFileById(ID_LOGO).getBlob();
+    var logoBlob = DriveApp.getFileById(ID_LOGO).getBlob();
     var tLogo = body.appendTable([['']]);
     tLogo.setBorderWidth(0);
     tLogo.setBorderColor(BLANCO);
-    var cLogo = tLogo.getRow(0).getCell(0);
-    cLogo.setBackgroundColor(BLANCO);
-    cLogo.setPaddingTop(0).setPaddingBottom(0).setPaddingLeft(4).setPaddingRight(4);
-    var pLogo = cLogo.getChild(0).asParagraph();
+    var celdaLogo = tLogo.getRow(0).getCell(0);
+    celdaLogo.setBackgroundColor(BLANCO);
+    celdaLogo.setPaddingTop(0).setPaddingBottom(0).setPaddingLeft(4).setPaddingRight(4);
+    var pLogo = celdaLogo.getChild(0).asParagraph();
     pLogo.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
     pLogo.setSpacingBefore(0).setSpacingAfter(0);
-    var img = pLogo.appendInlineImage(logo);
+    var img = pLogo.appendInlineImage(logoBlob);
     img.setWidth(140);
     img.setHeight(140);
     tLogo.setAttributes({ [DocumentApp.Attribute.SPACING_AFTER]: 0 });
-  } catch (err) {
-    console.warn('No se pudo insertar el logo: ' + err);
+  } catch (logoErr) {
+    // continúa sin logo
   }
 
+  // ── Encabezado: grado (año) ──
   espacio(2);
-  banda(a.grado_solicitado + '  (' + a.anio_vacante + ')', 22, true, false, 0, 4);
+  var encabezado = a.grado_solicitado + '  (' + a.anio_vacante + ')';
+  var tHead = body.appendTable([[encabezado]]);
+  tHead.setBorderColor(AZUL);
+  tHead.setBorderWidth(0);
+  estiloCelda_(tHead.getRow(0).getCell(0), AZUL_CLARO, AZUL, 22, true, false,
+    encabezado, DocumentApp.HorizontalAlignment.CENTER);
+  tHead.getRow(0).getCell(0).setPaddingTop(0).setPaddingBottom(4);
+  tHead.getRow(0).getCell(0).editAsText().setBackgroundColor(null);
+  tHead.setAttributes({ [DocumentApp.Attribute.SPACING_AFTER]: 0 });
 
+  // ── Subtítulo ──
   espacio(2);
-  banda('Ficha de Admisión', 10, false, true, 5, 5);
+  var tSub = body.appendTable([['Ficha de Admisión']]);
+  tSub.setBorderColor(AZUL);
+  tSub.setBorderWidth(0);
+  estiloCelda_(tSub.getRow(0).getCell(0), AZUL_CLARO, AZUL, 10, false, true,
+    'Ficha de Admisión', DocumentApp.HorizontalAlignment.CENTER);
+  tSub.getRow(0).getCell(0).setPaddingTop(5).setPaddingBottom(5);
+  tSub.getRow(0).getCell(0).editAsText().setBackgroundColor(null);
+  tSub.setAttributes({ [DocumentApp.Attribute.SPACING_AFTER]: 0 });
 
+  // ── Datos del alumno ──
   espacio(4);
   tituloSeccion(cfg.titulo);
   filaCajas([{ etiq: 'NOMBRE Y APELLIDO', val: a.alumno_nombre.toString().toUpperCase() }]);
   filaCajas([
     { etiq: 'FECHA DE NACIMIENTO', val: mostrarFecha(a.alumno_fecha_nac) },
-    { etiq: 'EDAD', val: calcularEdad(a.alumno_fecha_nac) },
     { etiq: 'DNI', val: a.alumno_dni || '' }
   ]);
   filaCajas([{ etiq: 'DIRECCIÓN', val: '' }]);
   filaCajas([{ etiq: cfg.etiquetaEscuela, val: a.escuela_actual || '' }]);
 
-  if (cfg.extra.length) {
-    filaCajas(cfg.extra.map(function (e) {
-      var v = a[e.campo];
-      return { etiq: e.etiq, val: e.tipo === 'booleano' ? mostrarBooleano(v) : (v || '') };
-    }));
-  }
-
-  // La inclusión define el circuito de admisión, así que va en la ficha.
-  filaCajas([{ etiq: 'PROYECTO DE INCLUSIÓN', val: mostrarBooleano(a.inclusion_solicitada) }]);
-  if (a.trayectoria_texto) {
-    filaCajas([{ etiq: 'TRAYECTORIA ESCOLAR DECLARADA', val: a.trayectoria_texto }]);
-  }
-
+  // ── Responsable 1 ──
   espacio(4);
   tituloSeccion('PADRE · MADRE · TUTOR/A 1');
   filaCajas([{ etiq: 'NOMBRE Y APELLIDO', val: a.tutor1_nombre || '' }]);
@@ -264,6 +213,7 @@ function generarFicha(idAdmision) {
     { etiq: 'MAIL', val: a.email || '' }
   ]);
 
+  // ── Responsable 2 ──
   espacio(4);
   tituloSeccion('PADRE · MADRE · TUTOR/A 2');
   filaCajas([{ etiq: 'NOMBRE Y APELLIDO', val: a.tutor2_nombre || '' }]);
@@ -273,20 +223,20 @@ function generarFicha(idAdmision) {
     { etiq: 'MAIL', val: '' }
   ]);
 
+  // ── Registro de admisión ──
   espacio(4);
   tituloSeccion('REGISTRO DE ADMISIÓN');
   filaCajas([
     { etiq: 'FECHA DE ADMISIÓN', val: '' },
     { etiq: 'REALIZADA POR', val: '' }
   ]);
-  if (a.motivo_cambio) {
-    filaCajas([{ etiq: 'MOTIVO DEL CAMBIO', val: a.motivo_cambio }]);
-  }
 
+  // ── Observaciones ──
   espacio(4);
   tituloSeccion('OBSERVACIONES');
-  cajaLibre(30);
+  cajaObs();
 
+  // ── Pie ──
   espacio(1);
   var tPie = body.appendTable([[cfg.pie]]);
   tPie.setBorderColor(AZUL);
@@ -300,7 +250,7 @@ function generarFicha(idAdmision) {
 
   var pdf = DriveApp.getFileById(doc.getId())
     .getAs(MimeType.PDF)
-    .setName('Ficha - ' + a.alumno_nombre + ' (' + a.nivel + ').pdf');
+    .setName('Ficha - ' + a.alumno_nombre + '.pdf');
 
   var archivo = carpetaFichas_().createFile(pdf);
   DriveApp.getFileById(doc.getId()).setTrashed(true);
@@ -322,7 +272,6 @@ if (typeof module !== 'undefined' && module.exports) {
   Object.assign(module.exports, {
     mostrarBooleano: mostrarBooleano,
     mostrarFecha: mostrarFecha,
-    calcularEdad: calcularEdad,
     FICHA_POR_NIVEL: FICHA_POR_NIVEL
   });
 }
