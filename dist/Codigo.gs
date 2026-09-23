@@ -1450,7 +1450,22 @@ var TOPE_FICHAS_POR_CORRIDA = 10;
 var PRESUPUESTO_MS = 90000;
 
 /**
+ * Cuántas horas atrás mira el barrido automático.
+ *
+ * La ficha se genera sola sólo para las admisiones nuevas. Sin esta ventana,
+ * el trigger tomaría todo el histórico sin ficha y generaría cientos de PDF
+ * de familias que ya pasaron por admisión hace años — ruido en Drive y
+ * consumo de cuota para nada.
+ *
+ * Las viejas se generan a demanda, con el botón de la ficha.
+ */
+var VENTANA_FICHAS_HORAS = 48;
+
+/**
  * Genera las fichas que falten.
+ *
+ * Con `ids`, procesa esas puntualmente (lo que usa la ingesta con las recién
+ * importadas). Sin `ids`, barre sólo las dadas de alta dentro de la ventana.
  *
  * Nunca lanza por una ficha suelta: si una falla, se registra y sigue con las
  * demás. La admisión ya está guardada, y una ficha se puede regenerar a mano
@@ -1462,8 +1477,13 @@ function generarFichasPendientes(ids) {
   if (ids && ids.length) {
     pendientes = ids;
   } else {
+    var corte = new Date(Date.now() - VENTANA_FICHAS_HORAS * 3600000);
     pendientes = leerAdmisiones()
-      .filter(function (a) { return !a.pdf_url && a.alumno_nombre; })
+      .filter(function (a) {
+        if (a.pdf_url || !a.alumno_nombre) return false;
+        var alta = aFecha(a.fecha_alta);
+        return alta && alta >= corte;
+      })
       .map(function (a) { return a.id; });
   }
 
@@ -1496,7 +1516,10 @@ function generarFichasPendientes(ids) {
 
 /**
  * Instala el trigger que genera las fichas que quedaron pendientes.
- * Ejecutar UNA VEZ. Corre cada hora y levanta lo que el tope dejó afuera.
+ *
+ * Ejecutar UNA VEZ. Corre cada hora y levanta lo que el tope de la
+ * importación dejó afuera, siempre dentro de la ventana de
+ * VENTANA_FICHAS_HORAS: nunca toca el histórico.
  */
 function instalarTriggerFichas() {
   ScriptApp.getProjectTriggers().forEach(function (t) {

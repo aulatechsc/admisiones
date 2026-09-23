@@ -283,3 +283,24 @@ test('no se regenera la ficha de una admisión que ya la tiene', () => {
   const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
   assert.ok(ficha.includes('a.pdf_url'), 'no chequea si ya tiene ficha');
 });
+
+test('el barrido automático sólo toma admisiones nuevas', () => {
+  // Sin ventana, el trigger tomaría todo el histórico sin ficha y generaría
+  // cientos de PDF de familias que ya pasaron por admisión hace años.
+  const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
+  assert.ok(ficha.includes('VENTANA_FICHAS_HORAS'), 'falta la ventana');
+
+  const cuerpo = ficha.slice(ficha.indexOf('function generarFichasPendientes'));
+  assert.ok(cuerpo.includes('corte'), 'el barrido no filtra por fecha');
+  assert.ok(/alta >= corte/.test(cuerpo), 'no compara contra el corte');
+});
+
+test('con ids explícitos no aplica la ventana', () => {
+  // La ingesta pasa las que acaba de importar: ésas se generan sí o sí,
+  // sin depender de cómo quedó la fecha de alta.
+  const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
+  const cuerpo = ficha.slice(ficha.indexOf('function generarFichasPendientes'));
+  const rama = cuerpo.slice(0, cuerpo.indexOf('} else {'));
+  assert.ok(rama.includes('pendientes = ids'), 'no respeta los ids explícitos');
+  assert.ok(!rama.includes('corte'), 'aplica la ventana a los ids explícitos');
+});
