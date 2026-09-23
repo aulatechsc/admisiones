@@ -29,7 +29,16 @@ test('el JavaScript del sitio compila', () => {
 
 test('el CSS no tiene colores inválidos', () => {
   const css = (HTML.match(/<style>([\s\S]*?)<\/style>/) || ['', ''])[1];
-  const colores = css.match(/#[0-9a-zA-Z]+/g) || [];
+
+  // Sólo los `#` que están en un valor de propiedad. Buscarlos en todo el CSS
+  // tomaría los selectores de id (#botonGoogle) por colores rotos.
+  const colores = [];
+  (css.match(/:[^;{}]+[;}]/g) || []).forEach((declaracion) => {
+    (declaracion.match(/#[0-9a-zA-Z]+/g) || []).forEach((c) => colores.push(c));
+  });
+
+  assert.ok(colores.length > 10, 'no se encontraron colores: el test no está mirando nada');
+
   colores.forEach((c) => {
     assert.match(c, /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, `color inválido: ${c}`);
   });
@@ -66,10 +75,31 @@ test('el sitio escapa lo que viene de la planilla', () => {
 
   const bloques = HTML.match(/<script>([\s\S]*?)<\/script>/g) || [];
   const codigo = bloques.join('\n');
-  const interpolaciones = codigo.match(/'\s*\+\s*(a|e|p|d|r)\.[a-z_]+\s*\+\s*'/g) || [];
+
+  // Marca sólo lo que termina dentro de marcado: un literal con `<` o `>`
+  // pegado a la interpolación. Un valor concatenado en un mensaje de texto
+  // que después pasa por aviso() o flotante() ya se escapa ahí, y contarlo
+  // haría que el test diera falsos positivos y terminara ignorándose.
+  //
+  // Los nombres de variable van sin la bandera `i` y anclados con \b: son las
+  // que llevan datos de la planilla (a = admisión, e = evento, p = previsua-
+  // lización, r = respuesta). Sin eso, ICO.cerrar — iconos fijos del propio
+  // código — se contaba como dato de usuario.
+  const enHtml = [
+    /<[^'"]*'\s*\+\s*\b[aeprdu]\.[a-z0-9_]+/g,   // …<span>' + a.campo
+    /\b[aeprdu]\.[a-z0-9_]+\s*\+\s*'[^'"]*[<>]/g // a.campo + '</span>…
+  ];
+
+  const hallazgos = [];
+  enHtml.forEach((patron) => {
+    (codigo.match(patron) || []).forEach((m) => {
+      if (!/\besc\(/.test(m)) hallazgos.push(m.trim());
+    });
+  });
+
   assert.deepStrictEqual(
-    interpolaciones, [],
-    'hay datos insertados en el HTML sin pasar por esc(): ' + interpolaciones.join(', ')
+    hallazgos, [],
+    'datos insertados en HTML sin pasar por esc():\n  ' + hallazgos.join('\n  ')
   );
 });
 
