@@ -270,6 +270,17 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
   background: var(--violeta-bg); color: var(--violeta);
 }
 
+/* Acceso directo a la ficha desde la lista */
+.ficha-rapida {
+  flex: none; width: 30px; height: 30px; padding: 0;
+  display: grid; place-items: center; border-radius: var(--r-s);
+  border: 1px solid var(--linea-fuerte); background: var(--superficie);
+  color: var(--texto-medio);
+}
+.ficha-rapida svg { width: 15px; height: 15px; }
+.ficha-rapida:hover { color: var(--marca); border-color: var(--marca); }
+.ficha-rapida.vacia { border-style: dashed; color: var(--texto-suave); opacity: .4; cursor: default; }
+
 /* ─── Panel lateral ─── */
 .velo {
   position: fixed; inset: 0; background: rgba(9,14,20,.45);
@@ -362,6 +373,24 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
   background: var(--superficie); border: 1px solid var(--linea);
   font-size: 12.5px; color: var(--texto-medio); white-space: pre-wrap;
   max-height: 150px; overflow-y: auto; line-height: 1.5;
+}
+
+.hito { position: relative; }
+.deshacer {
+  position: absolute; top: 0; right: 0;
+  width: 22px; height: 22px; padding: 0; border-radius: var(--r-s);
+  display: grid; place-items: center;
+  border: 1px solid transparent; background: transparent;
+  color: var(--texto-suave); opacity: 0; transition: var(--transicion);
+}
+.deshacer svg { width: 12px; height: 12px; }
+.hito:hover .deshacer { opacity: 1; }
+.deshacer:hover { background: var(--rojo-bg); color: var(--rojo); border-color: var(--rojo); }
+
+.corte {
+  background: var(--ambar-bg); color: var(--ambar);
+  padding: 9px 13px; border-radius: var(--r-m);
+  font-size: 13px; margin-bottom: 14px;
 }
 
 /* ─── Modal (mail / plantillas) ─── */
@@ -578,6 +607,7 @@ var ICO = {
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m20 6-11 11-5-5"/></svg>',
   alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
   cerrar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  ficha: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>',
   vacio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 13V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7"/><path d="M8 9h8M8 13h5"/></svg>'
 };
 
@@ -732,9 +762,25 @@ function pintarLista() {
         '</div>' +
       '</div>' +
       textoEspera(a.espera) +
-      '<span class="estado e-' + esc(a.estado) + '">' + esc(nombreEstado(a.estado)) + '</span>' +
+      '<span class="estado e-' + esc(a.estado) + '" title="' +
+        (a.estado_previo ? esc(nombreEstado(a.estado) + ' en la etapa ' + nombreEstado(a.estado_previo)) : '') +
+        '">' + esc(nombreEstado(a.estado)) +
+        (a.estado_previo ? '<small style="opacity:.75;font-weight:500"> · ' +
+          esc(nombreEstado(a.estado_previo)) + '</small>' : '') +
+      '</span>' +
+      (a.pdf_url
+        ? '<button class="ficha-rapida" data-pdf="' + esc(a.pdf_url) + '" title="Ver ficha">' +
+          ICO.ficha + '</button>'
+        : '<span class="ficha-rapida vacia" title="Todavía sin ficha">' + ICO.ficha + '</span>') +
     '</article>';
   }).join('') + '</div>';
+
+  Array.prototype.forEach.call(lista.querySelectorAll('.ficha-rapida[data-pdf]'), function (b) {
+    b.onclick = function (ev) {
+      ev.stopPropagation();   // no abrir el panel al tocar la ficha
+      window.open(b.dataset.pdf, '_blank');
+    };
+  });
 
   Array.prototype.forEach.call(lista.querySelectorAll('.tarjeta'), function (t) {
     t.onclick = function () { abrirPanel(t.dataset.id); };
@@ -797,6 +843,11 @@ function pintarPanel(a, eventos) {
     '<div class="panel-cuerpo">' +
       '<div id="avisoPanel"></div>' +
 
+      (a.estado_previo
+        ? '<div class="corte">' + esc(nombreEstado(a.estado)) + ' en la etapa ' +
+          '<b>' + esc(nombreEstado(a.estado_previo)) + '</b></div>'
+        : '') +
+
       '<div class="seccion">' +
         '<h3>Recorrido de la admisión</h3>' +
         '<div class="bloque">' + pintarPasos(a) + '</div>' +
@@ -817,8 +868,7 @@ function pintarPanel(a, eventos) {
         '<div class="bloque"><div class="campos">' +
           campo('Alumno/a', 'alumno_nombre', a.alumno_nombre) +
           campo('Nacimiento', 'alumno_fecha_nac', a.alumno_fecha_nac) +
-          campo('DNI', 'alumno_dni', a.alumno_dni) +
-          campo('Solicita', 'grado_solicitado', a.grado_solicitado) +
+            campo('Solicita', 'grado_solicitado', a.grado_solicitado) +
           campo('Actualmente', 'grado_actual', a.grado_actual) +
           campo('Escuela actual', 'escuela_actual', a.escuela_actual) +
           campo('Familia', 'tutor1_nombre', a.tutor1_nombre) +
@@ -861,6 +911,13 @@ function pintarPanel(a, eventos) {
     });
     accion('actualizar', { id: a.id, cambios: cambios }, a.id, 'Datos guardados');
   };
+
+  Array.prototype.forEach.call(document.querySelectorAll('#panel .deshacer'), function (b) {
+    b.onclick = function () {
+      accion('deshacerEstado', { id: a.id, idEvento: b.dataset.evento },
+        a.id, 'Cambio deshecho');
+    };
+  });
 
   document.getElementById('bMail').onclick = function () { abrirMail(a.id); };
 
@@ -936,13 +993,29 @@ function pintarRecorrido(eventos) {
       'Todavía no hay movimientos.</div>';
   }
   return '<div class="recorrido">' + eventos.map(function (e) {
+    // Sólo los cambios de estado se pueden deshacer: un mail ya salió y una
+    // respuesta de la familia ocurrió, borrarlos sería falsear el registro.
+    var deshacer = e.tipo === 'cambio_estado'
+      ? '<button class="deshacer" data-evento="' + esc(e.id) + '" ' +
+        'title="Deshacer este cambio de estado">' + ICO.cerrar + '</button>'
+      : '';
+
     return '<div class="hito ' + esc(e.tipo) + '">' +
+      deshacer +
       '<div class="cuando">' + esc(fecha(e.timestamp)) + ' · ' + esc(e.usuario) + '</div>' +
       '<div class="titulo">' + esc(NOMBRE_EVENTO[e.tipo] || e.tipo) +
-        (e.asunto ? ' — ' + esc(e.asunto) : '') + '</div>' +
+        (e.asunto ? ' — ' + esc(nombreTransicion(e.asunto)) : '') + '</div>' +
       (e.detalle ? '<div class="detalle">' + esc(e.detalle) + '</div>' : '') +
     '</div>';
   }).join('') + '</div>';
+}
+
+/** Traduce "nueva → contactada" a "Nueva → Contactada". */
+function nombreTransicion(asunto) {
+  if (!asunto || asunto.indexOf('→') === -1) return asunto;
+  return asunto.split('→')
+    .map(function (p) { return nombreEstado(p.trim()); })
+    .join(' → ');
 }
 
 function accion(nombre, params, idRecargar, mensaje) {

@@ -238,6 +238,7 @@ var COLUMNAS_ADMISIONES = [
   'comentarios',
   'motivo_no_matriculacion',
   'lista_espera',
+  'estado_previo',
   'responsable',
   'thread_id',
   'pdf_url',
@@ -257,7 +258,8 @@ var COLUMNAS_EVENTOS = [
   'asunto',
   'detalle',
   'thread_id',
-  'message_id'
+  'message_id',
+  'anulado'
 ];
 
 /**
@@ -944,6 +946,7 @@ function calcularEspera(admision, eventos, ahora) {
   var ultimoDeEllos = null;
 
   (eventos || []).forEach(function (e) {
+    if (aBooleano(e.anulado) === true) return;
     var f = aFecha(e.timestamp);
     if (!f) return;
     if (e.tipo === 'mail_enviado') {
@@ -1015,7 +1018,17 @@ function actualizarAdmision(id, cambios) {
   return obtenerAdmision(id);
 }
 
-/** Cambia el estado y lo deja asentado en Eventos. */
+/** Estados de los que no se vuelve: cierran el proceso. */
+var ESTADOS_TERMINALES = ['matriculada', 'sin_vacante', 'desistio'];
+
+/**
+ * Cambia el estado y lo deja asentado en Eventos.
+ *
+ * Al pasar a un estado terminal guarda de dónde venía en `estado_previo`:
+ * saber que una familia desistió sirve poco, saber que desistió *después de
+ * la entrevista* dice algo muy distinto que si desistió sin que la
+ * contactaran.
+ */
 function cambiarEstado(id, nuevoEstado, nota) {
   var estados = leerEstados();
   var valido = estados.some(function (e) { return e.id === nuevoEstado; });
@@ -1025,7 +1038,14 @@ function cambiarEstado(id, nuevoEstado, nota) {
   if (!antes) throw new Error('No existe la admisión ' + id);
   if (antes.estado === nuevoEstado) return antes;
 
-  actualizarAdmision(id, { estado: nuevoEstado });
+  var cambios = { estado: nuevoEstado };
+  if (ESTADOS_TERMINALES.indexOf(nuevoEstado) !== -1) {
+    cambios.estado_previo = antes.estado;
+  } else {
+    // Al salir de un estado terminal el dato deja de tener sentido.
+    cambios.estado_previo = '';
+  }
+  actualizarAdmision(id, cambios);
 
   registrarEvento({
     id_admision: id,
@@ -1038,15 +1058,81 @@ function cambiarEstado(id, nuevoEstado, nota) {
   return obtenerAdmision(id);
 }
 
+/**
+ * Deshace un cambio de estado mal hecho.
+ *
+ * Vuelve la admisión al estado anterior y marca el evento como anulado, pero
+ * no borra la fila: el log de Eventos es el registro de qué pasó con cada
+ * familia, y ante un reclamo importa poder reconstruirlo. El sitio oculta lo
+ * anulado, así que en la práctica desaparece de la vista.
+ *
+ * El estado anterior sale del asunto del propio evento ("nueva → contactada"),
+ * que es el que se escribió al hacer el cambio.
+ */
+function deshacerCambioEstado(idEvento) {
+  var hoja = hoja_(HOJAS.EVENTOS);
+  var datos = leerHoja_(hoja);
+  var eventos = filasAObjetos_(datos.encabezados, datos.filas);
+
+  var fila = -1;
+  var evento = null;
+  for (var i = 0; i < eventos.length; i++) {
+    if (eventos[i].id === idEvento) {
+      evento = eventos[i];
+      fila = i + 2; // +1 por el encabezado, +1 porque las filas arrancan en 1
+      break;
+    }
+  }
+
+  if (!evento) throw new Error('No existe el evento ' + idEvento);
+  if (evento.tipo !== 'cambio_estado') {
+    throw new Error('Sólo se pueden deshacer los cambios de estado.');
+  }
+  if (aBooleano(evento.anulado) === true) {
+    throw new Error('Ese cambio ya estaba deshecho.');
+  }
+
+  var partes = (evento.asunto || '').split('→');
+  if (partes.length !== 2) {
+    throw new Error('No se puede saber a qué estado volver: "' + evento.asunto + '"');
+  }
+  var estadoAnterior = partes[0].trim();
+
+  var estados = leerEstados();
+  if (!estados.some(function (e) { return e.id === estadoAnterior; })) {
+    throw new Error('El estado anterior "' + estadoAnterior + '" ya no existe.');
+  }
+
+  var colAnulado = COLUMNAS_EVENTOS.indexOf('anulado');
+  if (colAnulado === -1) {
+    throw new Error('Falta la columna "anulado" en Eventos. Corré migrarEsquema().');
+  }
+  hoja.getRange(fila, colAnulado + 1).setValue(true);
+
+  var admision = obtenerAdmision(evento.id_admision);
+  if (admision) {
+    var cambios = { estado: estadoAnterior };
+    if (ESTADOS_TERMINALES.indexOf(estadoAnterior) === -1) cambios.estado_previo = '';
+    actualizarAdmision(evento.id_admision, cambios);
+  }
+
+  return { ok: true, estado: estadoAnterior };
+}
+
 // ───────────────────────────────────────────────────────────────────
 // Eventos
 // ───────────────────────────────────────────────────────────────────
 
-/** Eventos de una admisión, del más nuevo al más viejo. */
+/**
+ * Eventos de una admisión, del más nuevo al más viejo.
+ * Los anulados quedan en la planilla pero no se muestran.
+ */
 function leerEventos(idAdmision) {
   var datos = leerHoja_(hoja_(HOJAS.EVENTOS));
   return filasAObjetos_(datos.encabezados, datos.filas)
-    .filter(function (e) { return e.id_admision === idAdmision; })
+    .filter(function (e) {
+      return e.id_admision === idAdmision && aBooleano(e.anulado) !== true;
+    })
     .sort(function (a, b) {
       return (b.timestamp || '').toString().localeCompare((a.timestamp || '').toString());
     });
@@ -2311,6 +2397,10 @@ function ejecutar(accion, params, email) {
         exigirAcceso(usuario, params.id);
         return { ok: true, resultado: registrarLlamada(params.id, params.detalle) };
 
+      case 'deshacerEstado':
+        exigirAcceso(usuario, params.id);
+        return { ok: true, resultado: deshacerCambioEstado(params.idEvento) };
+
       case 'agregarNota':
         exigirAcceso(usuario, params.id);
         return { ok: true, resultado: agregarNota(params.id, params.texto) };
@@ -2541,4 +2631,63 @@ function limpiarHojaPorDefecto_(ss) {
   if (def && def.getLastRow() === 0 && ss.getSheets().length > 1) {
     ss.deleteSheet(def);
   }
+}
+
+/**
+ * Agrega a las solapas existentes las columnas que falten.
+ *
+ * `setup()` no sirve para esto: si una solapa ya tiene datos la deja intacta,
+ * justamente para no pisar admisiones cargadas. Cuando el esquema crece, esta
+ * función pone las columnas nuevas al final de cada solapa, sin tocar ni
+ * mover lo que ya hay.
+ *
+ * Se puede correr las veces que haga falta: lo que ya existe no se duplica.
+ */
+function migrarEsquema() {
+  var ss = SpreadsheetApp.getActive();
+  var cambios = [];
+
+  [
+    { hoja: HOJAS.ADMISIONES, columnas: COLUMNAS_ADMISIONES },
+    { hoja: HOJAS.EVENTOS, columnas: COLUMNAS_EVENTOS },
+    { hoja: HOJAS.USUARIOS, columnas: COLUMNAS_USUARIOS },
+    { hoja: HOJAS.ESTADOS, columnas: COLUMNAS_ESTADOS },
+    { hoja: HOJA_PLANTILLAS, columnas: COLUMNAS_PLANTILLAS }
+  ].forEach(function (cfg) {
+    var hoja = ss.getSheetByName(cfg.hoja);
+    if (!hoja) {
+      cambios.push(cfg.hoja + ': no existe, corré setup() primero.');
+      return;
+    }
+
+    var actuales = hoja.getRange(1, 1, 1, Math.max(hoja.getLastColumn(), 1))
+      .getValues()[0]
+      .map(function (e) { return e.toString().trim(); });
+
+    var faltan = cfg.columnas.filter(function (c) { return actuales.indexOf(c) === -1; });
+    if (!faltan.length) {
+      cambios.push(cfg.hoja + ': al día.');
+      return;
+    }
+
+    // Asegura espacio antes de escribir: una solapa recortada al ancho
+    // exacto no tiene columnas libres donde poner las nuevas.
+    var desde = actuales.length + 1;
+    var necesarias = desde + faltan.length - 1;
+    if (hoja.getMaxColumns() < necesarias) {
+      hoja.insertColumnsAfter(hoja.getMaxColumns(), necesarias - hoja.getMaxColumns());
+    }
+
+    hoja.getRange(1, desde, 1, faltan.length)
+      .setValues([faltan])
+      .setFontWeight('bold')
+      .setBackground('#ddeef5')
+      .setFontColor('#00476c');
+
+    cambios.push(cfg.hoja + ': + ' + faltan.join(', '));
+  });
+
+  var resumen = cambios.join('\n');
+  console.log(resumen);
+  return resumen;
 }

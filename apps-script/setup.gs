@@ -113,3 +113,62 @@ function limpiarHojaPorDefecto_(ss) {
     ss.deleteSheet(def);
   }
 }
+
+/**
+ * Agrega a las solapas existentes las columnas que falten.
+ *
+ * `setup()` no sirve para esto: si una solapa ya tiene datos la deja intacta,
+ * justamente para no pisar admisiones cargadas. Cuando el esquema crece, esta
+ * función pone las columnas nuevas al final de cada solapa, sin tocar ni
+ * mover lo que ya hay.
+ *
+ * Se puede correr las veces que haga falta: lo que ya existe no se duplica.
+ */
+function migrarEsquema() {
+  var ss = SpreadsheetApp.getActive();
+  var cambios = [];
+
+  [
+    { hoja: HOJAS.ADMISIONES, columnas: COLUMNAS_ADMISIONES },
+    { hoja: HOJAS.EVENTOS, columnas: COLUMNAS_EVENTOS },
+    { hoja: HOJAS.USUARIOS, columnas: COLUMNAS_USUARIOS },
+    { hoja: HOJAS.ESTADOS, columnas: COLUMNAS_ESTADOS },
+    { hoja: HOJA_PLANTILLAS, columnas: COLUMNAS_PLANTILLAS }
+  ].forEach(function (cfg) {
+    var hoja = ss.getSheetByName(cfg.hoja);
+    if (!hoja) {
+      cambios.push(cfg.hoja + ': no existe, corré setup() primero.');
+      return;
+    }
+
+    var actuales = hoja.getRange(1, 1, 1, Math.max(hoja.getLastColumn(), 1))
+      .getValues()[0]
+      .map(function (e) { return e.toString().trim(); });
+
+    var faltan = cfg.columnas.filter(function (c) { return actuales.indexOf(c) === -1; });
+    if (!faltan.length) {
+      cambios.push(cfg.hoja + ': al día.');
+      return;
+    }
+
+    // Asegura espacio antes de escribir: una solapa recortada al ancho
+    // exacto no tiene columnas libres donde poner las nuevas.
+    var desde = actuales.length + 1;
+    var necesarias = desde + faltan.length - 1;
+    if (hoja.getMaxColumns() < necesarias) {
+      hoja.insertColumnsAfter(hoja.getMaxColumns(), necesarias - hoja.getMaxColumns());
+    }
+
+    hoja.getRange(1, desde, 1, faltan.length)
+      .setValues([faltan])
+      .setFontWeight('bold')
+      .setBackground('#ddeef5')
+      .setFontColor('#00476c');
+
+    cambios.push(cfg.hoja + ': + ' + faltan.join(', '));
+  });
+
+  var resumen = cambios.join('\n');
+  console.log(resumen);
+  return resumen;
+}

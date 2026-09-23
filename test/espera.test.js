@@ -304,3 +304,127 @@ test('con ids explícitos no aplica la ventana', () => {
   assert.ok(rama.includes('pendientes = ids'), 'no respeta los ids explícitos');
   assert.ok(!rama.includes('corte'), 'aplica la ventana a los ids explícitos');
 });
+
+// ───────────────────────────────────────────────────────────────────
+// Deshacer un cambio de estado
+// ───────────────────────────────────────────────────────────────────
+
+const DATOS = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'datos.gs'), 'utf8');
+
+test('deshacer marca como anulado en vez de borrar la fila', () => {
+  // El log de Eventos es el registro de qué pasó con cada familia. Ante un
+  // reclamo importa poder reconstruirlo, así que un error de tipeo no puede
+  // borrar historia: se oculta, no se elimina.
+  const cuerpo = DATOS.slice(DATOS.indexOf('function deshacerCambioEstado'));
+  assert.ok(cuerpo.includes("setValue(true)"), 'no marca anulado');
+  assert.ok(!/deleteRow/.test(cuerpo), 'borra la fila del log');
+});
+
+test('sólo se deshacen cambios de estado', () => {
+  const cuerpo = DATOS.slice(DATOS.indexOf('function deshacerCambioEstado'));
+  assert.ok(cuerpo.includes("evento.tipo !== 'cambio_estado'"),
+    'deja deshacer eventos que no son cambios de estado');
+});
+
+test('no se deshace dos veces el mismo cambio', () => {
+  const cuerpo = DATOS.slice(DATOS.indexOf('function deshacerCambioEstado'));
+  assert.ok(/anulado\) === true/.test(cuerpo), 'no chequea si ya estaba deshecho');
+});
+
+test('los eventos anulados no se muestran ni cuentan para la espera', () => {
+  const eventos = DATOS.slice(DATOS.indexOf('function leerEventos'),
+                              DATOS.indexOf('function registrarEvento'));
+  assert.ok(eventos.includes('anulado'), 'leerEventos muestra los anulados');
+
+  const espera = DATOS.slice(DATOS.indexOf('function calcularEspera'),
+                             DATOS.indexOf('function eventosPorAdmision'));
+  assert.ok(espera.includes('anulado'), 'calcularEspera cuenta los anulados');
+});
+
+test('el sitio sólo ofrece la cruz en cambios de estado', () => {
+  const recorrido = HTML.slice(HTML.indexOf('function pintarRecorrido'));
+  const hasta = recorrido.indexOf('function nombreTransicion');
+  assert.ok(recorrido.slice(0, hasta).includes("e.tipo === 'cambio_estado'"),
+    'la cruz aparece en cualquier evento');
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Dónde se cortó el proceso
+// ───────────────────────────────────────────────────────────────────
+
+test('al cerrar una admisión se guarda de qué etapa venía', () => {
+  // Que una familia haya desistido dice poco; que haya desistido después de
+  // la entrevista dice algo muy distinto que si desistió sin que la
+  // contactaran.
+  const cuerpo = DATOS.slice(DATOS.indexOf('function cambiarEstado'),
+                             DATOS.indexOf('function deshacerCambioEstado'));
+  assert.ok(cuerpo.includes('ESTADOS_TERMINALES'), 'no distingue estados terminales');
+  assert.ok(cuerpo.includes('cambios.estado_previo = antes.estado'), 'no guarda la etapa previa');
+});
+
+test('al reabrir una admisión se limpia la etapa previa', () => {
+  const cuerpo = DATOS.slice(DATOS.indexOf('function cambiarEstado'),
+                             DATOS.indexOf('function deshacerCambioEstado'));
+  assert.ok(/cambios\.estado_previo = ''/.test(cuerpo), 'deja el dato viejo al reabrir');
+});
+
+test('estado_previo es columna de Admisiones', () => {
+  const cfg = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'config.gs'), 'utf8');
+  assert.ok(cfg.includes("'estado_previo'"));
+  assert.ok(cfg.includes("'anulado'"));
+});
+
+test('el sitio muestra en qué etapa se cortó', () => {
+  assert.ok(HTML.includes('a.estado_previo'), 'no muestra la etapa previa');
+  assert.ok(HTML.includes('class="corte"'), 'falta el aviso de corte');
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Ficha desde la lista y DNI
+// ───────────────────────────────────────────────────────────────────
+
+test('la lista tiene acceso directo a la ficha', () => {
+  assert.ok(HTML.includes('ficha-rapida'), 'falta el botón de ficha en la lista');
+  assert.ok(HTML.includes('data-pdf='), 'el botón no lleva el link');
+});
+
+test('tocar la ficha no abre el panel', () => {
+  // Sin frenar la propagación, el click llega también a la tarjeta y se abre
+  // el panel detrás de la pestaña del PDF.
+  const bloque = HTML.slice(HTML.indexOf(".ficha-rapida[data-pdf]"));
+  assert.ok(bloque.slice(0, 400).includes('stopPropagation'), 'el click se propaga a la tarjeta');
+});
+
+test('el DNI ya no se pide en el sitio', () => {
+  assert.ok(!HTML.includes("campo('DNI'"), 'quedó el campo DNI');
+});
+
+test('la ficha PDF conserva el casillero de DNI', () => {
+  // En el sitio no se pide, pero en la ficha impresa el casillero sigue para
+  // completarlo a mano en la entrevista.
+  const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
+  assert.ok(ficha.includes("etiq: 'DNI'"));
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Migración
+// ───────────────────────────────────────────────────────────────────
+
+test('migrarEsquema agrega columnas sin tocar las que hay', () => {
+  const setup = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'setup.gs'), 'utf8');
+  const cuerpo = setup.slice(setup.indexOf('function migrarEsquema'));
+
+  assert.ok(cuerpo.includes('indexOf(c) === -1'), 'no filtra las que ya existen');
+  assert.ok(!/deleteColumn|clear\(\)|setValues\(\[\[/.test(cuerpo.replace(/setValues\(\[faltan\]\)/g, '')),
+    'la migración toca datos existentes');
+  assert.ok(cuerpo.includes('insertColumnsAfter'), 'no agranda la solapa si hace falta');
+});
+
+test('migrarEsquema cubre todas las solapas', () => {
+  const setup = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'setup.gs'), 'utf8');
+  const cuerpo = setup.slice(setup.indexOf('function migrarEsquema'));
+  ['ADMISIONES', 'EVENTOS', 'USUARIOS', 'ESTADOS'].forEach((h) => {
+    assert.ok(cuerpo.includes('HOJAS.' + h), `la migración no cubre ${h}`);
+  });
+  assert.ok(cuerpo.includes('HOJA_PLANTILLAS'));
+});

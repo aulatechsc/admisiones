@@ -59,6 +59,7 @@ var COLUMNAS_ADMISIONES = [
   'comentarios',
   'motivo_no_matriculacion',
   'lista_espera',
+  'estado_previo',
   'responsable',
   'thread_id',
   'pdf_url',
@@ -78,7 +79,8 @@ var COLUMNAS_EVENTOS = [
   'asunto',
   'detalle',
   'thread_id',
-  'message_id'
+  'message_id',
+  'anulado'
 ];
 
 /**

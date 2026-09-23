@@ -151,6 +151,10 @@ function ejecutar(accion, params, email) {
         exigirAcceso(usuario, params.id);
         return { ok: true, resultado: registrarLlamada(params.id, params.detalle) };
 
+      case 'deshacerEstado':
+        exigirAcceso(usuario, params.id);
+        return { ok: true, resultado: deshacerCambioEstado(params.idEvento) };
+
       case 'agregarNota':
         exigirAcceso(usuario, params.id);
         return { ok: true, resultado: agregarNota(params.id, params.texto) };
