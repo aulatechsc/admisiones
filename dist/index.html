@@ -225,8 +225,16 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
   cursor: pointer; transition: var(--transicion);
   display: block; box-shadow: var(--sombra-1);
 }
-.tarjeta .arriba { display: flex; align-items: center; gap: 12px; }
-.tarjeta .derecha { display: flex; align-items: center; gap: 7px; flex: none; }
+/* Rejilla y no flex: con flex el nombre se queda con el espacio libre y el
+   recorrido queda pegado a él. Las dos columnas de los costados miden igual,
+   así que el recorrido cae justo en el medio. */
+.tarjeta .arriba { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 16px; }
+.tarjeta .medio { display: flex; align-items: flex-start; }
+/* Un renglón por dato: el nombre entero no entra al lado del recorrido, y
+   partido en dos deja cada tarjeta de un alto distinto. */
+.tarjeta .nombre, .tarjeta .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tarjeta .sub { font-size: 13px; color: var(--texto-suave); margin-top: 1px; }
+.tarjeta .derecha { display: flex; align-items: center; gap: 7px; justify-self: end; }
 .tarjeta:hover {
   border-color: var(--linea-fuerte); box-shadow: var(--sombra-2);
   transform: translateY(-1px);
@@ -265,51 +273,28 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
 .tarjeta.s-rojo     { border-left-color: var(--rojo); }
 .tarjeta.s-gris     { border-left-color: var(--linea-fuerte); }
 
-/* Recorrido dentro de la tarjeta: las mismas etapas del panel, en chico.
-   Sin rótulos, que en una lista de cincuenta filas serían ilegibles: el
-   nombre va en el tooltip y en el popover al tocar. */
-.mini-pasos {
-  display: flex; align-items: center; margin-top: 9px;
-  padding-top: 9px; border-top: 1px solid var(--linea);
-  gap: 0; flex-wrap: nowrap; overflow-x: auto;
-}
-.mini-paso {
-  position: relative; flex: none; padding: 0; border: none; background: none;
-  width: 30px; height: 20px; cursor: pointer; display: grid; place-items: center;
-}
-.mini-paso::before {
-  content: ''; position: absolute; left: 0; right: 50%; top: 50%;
-  height: 2px; background: var(--linea); transform: translateY(-50%);
-}
-.mini-paso::after {
-  content: ''; position: absolute; left: 50%; right: 0; top: 50%;
-  height: 2px; background: var(--linea); transform: translateY(-50%);
-}
-.mini-paso:first-child::before, .mini-paso.ultimo::after { display: none; }
+/* El recorrido va al medio de la tarjeta, con los mismos rótulos y el mismo
+   tilde que en el panel — es el mismo componente, sólo que más chico. */
+.pasos.chico { padding: 0; }
+.pasos.chico .paso { flex: 0 0 74px; min-width: 0; }
+.pasos.chico .paso::before { top: 8px; }
+.pasos.chico .bolita { width: 18px; height: 18px; margin-bottom: 4px; }
+.pasos.chico .bolita svg { width: 9px; height: 9px; }
+.pasos.chico .rotulo { font-size: 10px; padding: 0 2px; }
+.pasos.chico .paso.actual .bolita { box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 20%, transparent); }
 
-.mini-paso i {
-  position: relative; z-index: 1; display: block;
-  width: 11px; height: 11px; border-radius: 50%;
-  background: var(--superficie); border: 2px solid var(--linea-fuerte);
-  transition: var(--transicion);
-}
-.mini-paso.hecho::before, .mini-paso.hecho::after { background: var(--verde); }
-.mini-paso.hecho i { background: var(--verde); border-color: var(--verde); }
-.mini-paso.actual::before { background: var(--verde); }
-.mini-paso.actual i {
-  background: var(--marca); border-color: var(--marca);
-  width: 14px; height: 14px;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 22%, transparent);
-}
-.mini-paso:hover i { border-color: var(--marca); }
-
-.mini-mas {
-  flex: none; margin-left: 10px; padding: 2px 9px; border-radius: 999px;
+/* Los desvíos no entran como pastillas en cada fila: un bloque de tres por
+   tarjeta duplica el alto del dashboard entero. Van detrás de este botón,
+   que igual muestra el nombre y el color cuando la admisión está en uno. */
+.rama-chip {
+  flex: none; flex: none; padding: 3px 10px; border-radius: 999px;
   border: 1px solid var(--linea-fuerte); background: var(--superficie);
   color: var(--texto-suave); font-size: 12px; font-weight: 600; line-height: 1.5;
 }
-.mini-mas:hover { color: var(--marca); border-color: var(--marca); }
-.mini-mas.marcada { border-color: currentColor; font-weight: 650; }
+.rama-chip:hover { color: var(--marca); border-color: var(--marca); }
+.rama-chip.activa-lista_espera { background: var(--gris-bg); color: var(--gris); border-color: var(--gris); }
+.rama-chip.activa-sin_vacante  { background: var(--rojo-bg); color: var(--rojo); border-color: var(--rojo); }
+.rama-chip.activa-desistio     { background: var(--gris-bg); color: var(--gris); border-color: var(--gris); }
 
 /* Confirmación al tocar un paso: el destino y la nota, en el mismo lugar */
 .popover {
@@ -616,11 +601,21 @@ code {
   .acciones-barra { width: 100%; margin-left: 0; }
   .acciones-barra button { flex: 1; }
 
-  /* En el celular el nombre se queda con el ancho y el resto baja: apretados
-     en la misma línea, el nombre del alumno queda cortado a tres letras. */
-  .tarjeta .arriba { flex-wrap: wrap; }
-  .tarjeta .derecha { width: 100%; justify-content: flex-start; }
   .popover { width: calc(100vw - 28px); max-width: 300px; }
+}
+
+/* El recorrido con rótulos necesita unos 460px. Cuando no entra al lado del
+   nombre baja a una fila propia, centrado, en vez de aplastar todo: apretados
+   en la misma línea, el nombre del alumno queda cortado a tres letras. */
+@media (max-width: 1180px) {
+  .tarjeta .arriba { display: flex; flex-wrap: wrap; }
+  .tarjeta .principal { flex: 1 1 200px; }
+  .tarjeta .derecha { flex: none; }
+  .tarjeta .medio {
+    order: 3; flex: 1 1 100%; justify-content: center;
+    margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--linea);
+    overflow-x: auto;
+  }
 }
 </style>
 </head>
@@ -906,14 +901,15 @@ function pintarLista() {
             (esVerdadero(a.inclusion_solicitada)
               ? '<span class="marca-inclusion">inclusión</span>' : '') +
           '</div>' +
-          '<div class="nombre">' + esc(a.alumno_nombre) +
-            '<span style="font-weight:400;color:var(--texto-suave)"> — ' +
-              esc(a.grado_solicitado || '—') + ' — ' + esc(a.anio_vacante || '—') + '</span>' +
-          '</div>' +
+          '<div class="nombre" title="' + esc(a.alumno_nombre) + '">' +
+            esc(a.alumno_nombre) + '</div>' +
+          '<div class="sub">' + esc(a.grado_solicitado || '—') +
+            ' — ' + esc(a.anio_vacante || '—') + '</div>' +
         '</div>' +
+        miniPasos(a) +
         '<div class="derecha">' +
           textoEspera(a.espera) +
-          '<span class="estado e-' + esc(a.estado) + '">' + esc(nombreEstado(a.estado)) + '</span>' +
+          chipRama(a) +
           '<div class="acciones-fila">' +
             '<button data-mail-de="' + esc(a.id) + '" title="Enviar mail">' + ICO.sobre + '</button>' +
             (a.pdf_url
@@ -922,7 +918,6 @@ function pintarLista() {
           '</div>' +
         '</div>' +
       '</div>' +
-      miniPasos(a) +
     '</article>';
   }).join('') + '</div>';
 
@@ -973,44 +968,30 @@ function cerrarMenuEstado() {
 }
 
 /**
- * El recorrido de la admisión, dibujado dentro de la tarjeta.
+ * El recorrido dentro de la tarjeta: el mismo checkpoint del panel, en chico.
  *
- * Es el mismo stepper del panel, sin rótulos: en una lista larga los nombres
- * de las seis etapas no entran y, apilados, tapan lo que se vino a mirar. El
- * nombre está en el tooltip de cada punto y arriba, en el chip de estado.
- *
- * Los tres desvíos (lista de espera, sin vacante, desistió) no son etapas del
- * recorrido, así que no van como puntos: quedan detrás del botón del final,
- * que muestra el nombre cuando la admisión está en uno de ellos.
+ * Los tres desvíos (lista de espera, sin vacante, desistió) no van como
+ * pastillas acá: son un bloque aparte que en una lista de cincuenta familias
+ * duplica el alto de todo el dashboard. Quedan detrás del botón del final,
+ * que muestra el nombre y el color cuando la admisión está en uno.
  */
 function miniPasos(a) {
-  var flujo = estados.filter(function (e) { return Number(e.orden) <= ORDEN_MAXIMO_FLUJO; });
-  var ramas = estados.filter(function (e) { return Number(e.orden) > ORDEN_MAXIMO_FLUJO; });
+  var enRama = ramaActual(a);
 
-  var enRama = null;
-  ramas.forEach(function (e) { if (e.id === a.estado) enRama = e; });
+  var pasos = dibujarPasos(a, function (e) {
+    return 'data-paso-de="' + esc(a.id) + '" data-paso-a="' + esc(e.id) + '"';
+  });
 
-  // En un desvío el recorrido igual importa: `estado_previo` dice hasta dónde
-  // había llegado la familia antes de desistir o quedar sin vacante, que es
-  // justo lo que hay que poder leer de un vistazo.
-  var referencia = enRama ? a.estado_previo : a.estado;
-  var hasta = -1;
-  flujo.forEach(function (e, i) { if (e.id === referencia) hasta = i; });
+  return '<div class="medio"><div class="pasos chico">' + pasos + '</div></div>';
+}
 
-  var puntos = flujo.map(function (e, i) {
-    var clase = enRama
-      ? (i <= hasta ? 'hecho' : '')
-      : (i < hasta ? 'hecho' : (i === hasta ? 'actual' : ''));
-    if (i === flujo.length - 1) clase += ' ultimo';
-    return '<button class="mini-paso ' + clase + '" data-paso-de="' + esc(a.id) + '" ' +
-      'data-paso-a="' + esc(e.id) + '" title="' + esc(e.nombre) + '"><i></i></button>';
-  }).join('');
-
-  return '<div class="mini-pasos">' + puntos +
-    '<button class="mini-mas' + (enRama ? ' marcada e-' + esc(enRama.id) : '') + '" ' +
-      'data-estado-de="' + esc(a.id) + '" title="Otros estados">' +
-      (enRama ? esc(enRama.nombre) : '···') +
-    '</button></div>';
+/** El botón de los desvíos, que vive con el resto de las acciones de la fila. */
+function chipRama(a) {
+  var enRama = ramaActual(a);
+  return '<button class="rama-chip' + (enRama ? ' activa-' + esc(enRama.id) : '') + '" ' +
+    'data-estado-de="' + esc(a.id) + '" title="Lista de espera, sin vacante, desistió">' +
+    (enRama ? esc(enRama.nombre) : '···') +
+  '</button>';
 }
 
 /**
@@ -1311,23 +1292,65 @@ function pintarPanel(a, eventos) {
  */
 var ORDEN_MAXIMO_FLUJO = 60;
 
-function pintarPasos(a) {
+var TICK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="m20 6-11 11-5-5"/></svg>';
+
+/** El desvío en el que está la admisión, o null si sigue en el recorrido. */
+function ramaActual(a) {
+  var encontrada = null;
+  estados.forEach(function (e) {
+    if (e.id === a.estado && Number(e.orden) > ORDEN_MAXIMO_FLUJO) encontrada = e;
+  });
+  return encontrada;
+}
+
+/**
+ * Hasta qué etapa del recorrido llegó la admisión, como índice de `flujo`.
+ *
+ * En un desvío el estado actual no es una etapa, así que se mira
+ * `estado_previo`: dice hasta dónde había llegado la familia antes de
+ * desistir o de quedar en lista de espera, que es lo que hay que ver.
+ */
+function hastaDondeLlego(a, flujo) {
+  var referencia = ramaActual(a) ? a.estado_previo : a.estado;
+  var hasta = -1;
+  flujo.forEach(function (e, i) { if (e.id === referencia) hasta = i; });
+  return hasta;
+}
+
+/**
+ * El checkpoint: una bolita por etapa, con tilde verde en las cumplidas, la
+ * actual resaltada y las que faltan en gris.
+ *
+ * Lo comparten el panel y la tarjeta del dashboard, para que el recorrido se
+ * lea igual en los dos lados. Lo único que cambia es cómo se engancha el
+ * click, que viene en `atributos`.
+ */
+function dibujarPasos(a, atributos) {
   var flujo = estados.filter(function (e) { return Number(e.orden) <= ORDEN_MAXIMO_FLUJO; });
-  var ramas = estados.filter(function (e) { return Number(e.orden) > ORDEN_MAXIMO_FLUJO; });
+  var enRama = ramaActual(a);
+  var hasta = hastaDondeLlego(a, flujo);
 
-  var actual = -1;
-  flujo.forEach(function (e, i) { if (e.id === a.estado) actual = i; });
+  return flujo.map(function (e, i) {
+    // En un desvío no hay etapa "actual": el recorrido quedó interrumpido, y
+    // lo que importa es hasta dónde había llegado.
+    var clase = enRama
+      ? (i <= hasta ? 'hecho' : '')
+      : (i < hasta ? 'hecho' : (i === hasta ? 'actual' : ''));
 
-  var tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="m20 6-11 11-5-5"/></svg>';
-
-  var pasos = flujo.map(function (e, i) {
-    var clase = i < actual ? 'hecho' : (i === actual ? 'actual' : '');
-    return '<button class="paso ' + clase + '" data-ir-a="' + esc(e.id) + '" ' +
+    return '<button class="paso ' + clase + '" ' + atributos(e) + ' ' +
       'title="Marcar como ' + esc(e.nombre) + '">' +
-      '<span class="bolita">' + tick + '</span>' +
+      '<span class="bolita">' + TICK + '</span>' +
       '<span class="rotulo">' + esc(e.nombre) + '</span>' +
     '</button>';
   }).join('');
+}
+
+function pintarPasos(a) {
+  var ramas = estados.filter(function (e) { return Number(e.orden) > ORDEN_MAXIMO_FLUJO; });
+
+  var pasos = dibujarPasos(a, function (e) {
+    return 'data-ir-a="' + esc(e.id) + '"';
+  });
 
   var desvios = ramas.map(function (e) {
     return '<button class="rama ' + (e.id === a.estado ? 'activa-' + esc(e.id) : '') + '" ' +

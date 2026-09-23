@@ -485,23 +485,47 @@ const ESTADOS_STUB = [
 /** miniPasos se apoya en globals del sitio; acá se los pasamos a mano. */
 function miniPasosDelSitio() {
   const ctx = {};
-  new Function('ctx', 'estados', 'esc', 'ORDEN_MAXIMO_FLUJO',
-    extraerFuncion('miniPasos') + '\n;ctx.f = miniPasos;'
-  )(ctx, ESTADOS_STUB, (x) => String(x === null || x === undefined ? '' : x), 60);
+  const codigo = ['ramaActual', 'hastaDondeLlego', 'dibujarPasos', 'miniPasos']
+    .map(extraerFuncion).join('\n');
+
+  new Function('ctx', 'estados', 'esc', 'ORDEN_MAXIMO_FLUJO', 'TICK',
+    codigo + '\n;ctx.f = miniPasos;'
+  )(ctx, ESTADOS_STUB, (x) => String(x === null || x === undefined ? '' : x), 60, '<svg></svg>');
   return ctx.f;
 }
 
-/** Los estados de los puntos, en orden, como los deja el HTML. */
+/** Los estados de las bolitas, en orden, como los deja el HTML. */
 function clasesDePasos(html) {
-  return (html.match(/class="mini-paso [^"]*"/g) || []).map((c) =>
-    c.replace('class="mini-paso ', '').replace(/ ?ultimo/, '').replace('"', '').trim());
+  return (html.match(/class="paso [^"]*"/g) || []).map((c) =>
+    c.replace('class="paso ', '').replace('"', '').trim());
 }
 
 test('la tarjeta dibuja el recorrido de la admisión', () => {
-  // El pedido era ver el proceso sin abrir la ficha: el stepper del panel,
-  // en chico, dentro de cada tarjeta.
+  // El pedido era ver el proceso sin abrir la ficha: el mismo checkpoint del
+  // panel, en chico, dentro de cada tarjeta.
   assert.ok(HTML.includes('miniPasos(a)'), 'la tarjeta no dibuja el recorrido');
   assert.ok(HTML.includes('function miniPasos('), 'falta miniPasos');
+});
+
+test('el panel y la tarjeta dibujan el mismo checkpoint', () => {
+  // Dos implementaciones del mismo recorrido se despegan: fue exactamente lo
+  // que pasó con el tilde, que estaba sólo en el panel.
+  ['function pintarPasos(', 'function miniPasos('].forEach((f) => {
+    const cuerpo = HTML.slice(HTML.indexOf(f));
+    assert.ok(cuerpo.slice(0, cuerpo.indexOf('\n}')).includes('dibujarPasos('),
+      `${f} no usa el checkpoint compartido`);
+  });
+});
+
+test('las etapas cumplidas llevan el tilde', () => {
+  const miniPasos = miniPasosDelSitio();
+  const html = miniPasos({ id: '1', estado: 'visita', alumno_nombre: 'A' });
+
+  // El tilde es el mismo SVG para todas: lo que lo muestra es la clase
+  // `hecho`, con `.paso .bolita svg { opacity: 0 }` de base.
+  assert.strictEqual((html.match(/class="paso hecho"/g) || []).length, 4);
+  assert.ok(HTML.includes('.paso.hecho .bolita svg { opacity: 1; }'),
+    'el tilde no se enciende en las etapas cumplidas');
 });
 
 test('el recorrido marca lo hecho, lo actual y lo que falta', () => {
@@ -518,7 +542,7 @@ test('el recorrido no dibuja los desvíos como pasos', () => {
   const miniPasos = miniPasosDelSitio();
   const html = miniPasos({ id: '1', estado: 'nueva', alumno_nombre: 'A' });
 
-  assert.strictEqual(clasesDePasos(html).length, 6, 'hay más puntos que etapas del flujo');
+  assert.strictEqual(clasesDePasos(html).length, 6, 'hay más bolitas que etapas del flujo');
   assert.ok(!html.includes('data-paso-a="desistio"'));
   assert.ok(!html.includes('data-paso-a="lista_espera"'));
 });
@@ -533,7 +557,15 @@ test('en un desvío el recorrido muestra hasta dónde había llegado', () => {
   assert.deepStrictEqual(clasesDePasos(html),
     ['hecho', 'hecho', 'hecho', 'hecho', '', ''],
     'no se ve hasta dónde llegó antes de desistir');
-  assert.ok(html.includes('Desistió'), 'no se nombra el desvío');
+});
+
+test('el desvío se nombra en su propio botón, fuera del recorrido', () => {
+  // Adentro del recorrido, el ancho del texto corría las bolitas y las
+  // columnas dejaban de alinearse entre una tarjeta y la siguiente.
+  const cuerpo = HTML.slice(HTML.indexOf('function chipRama('));
+  assert.ok(cuerpo.slice(0, cuerpo.indexOf('\n}')).includes('ramaActual(a)'),
+    'el botón de desvíos no sabe en cuál está');
+  assert.ok(HTML.includes('chipRama(a)'), 'la tarjeta no lo dibuja');
 });
 
 test('un punto del recorrido pide confirmación antes de cambiar el estado', () => {
