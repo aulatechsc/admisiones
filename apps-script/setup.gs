@@ -172,3 +172,41 @@ function migrarEsquema() {
   console.log(resumen);
   return resumen;
 }
+
+/**
+ * Arregla las fechas que quedaron guardadas como texto largo.
+ *
+ * Antes de que la ingesta formateara al escribir, una columna con formato de
+ * fecha se grababa con toString() y quedaba como
+ * "Wed Dec 04 2024 00:00:00 GMT-0300 (Argentina Standard Time)".
+ *
+ * Esto recorre las admisiones ya cargadas y reescribe esos campos en
+ * dd/mm/aaaa. Es seguro correrlo de nuevo: lo que ya está bien no se toca.
+ */
+function limpiarFechas() {
+  var hoja = hoja_(HOJAS.ADMISIONES);
+  var datos = leerHoja_(hoja);
+  var arregladas = 0;
+
+  CAMPOS_FECHA_CORTA.forEach(function (campo) {
+    var col = datos.encabezados.indexOf(campo);
+    if (col === -1) return;
+
+    datos.filas.forEach(function (fila, i) {
+      var valor = fila[col];
+      if (valor === '' || valor === null || valor === undefined) return;
+
+      var formateada = formatearFechaCorta(valor);
+      if (formateada === valor.toString()) return;
+
+      hoja.getRange(i + 2, col + 1).setValue(formateada);
+      arregladas++;
+    });
+  });
+
+  var resumen = arregladas
+    ? arregladas + ' fecha(s) reescritas en dd/mm/aaaa.'
+    : 'No había fechas para arreglar.';
+  console.log(resumen);
+  return resumen;
+}

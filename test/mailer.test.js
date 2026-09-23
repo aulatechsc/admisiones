@@ -8,7 +8,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { cargar } = require('./helpers');
 
-const M = cargar('util.gs', 'config.gs', 'plantillas.gs', 'fichas.gs', 'ingesta.gs', 'mailer.gs');
+const M = cargar('util.gs', 'config.gs', 'plantillas.gs', 'fichas.gs', 'mailer.gs', 'ingesta.gs');
 
 // ───────────────────────────────────────────────────────────────────
 // Reply-To: el mecanismo que hace que las directoras reciban las respuestas
@@ -198,4 +198,99 @@ test('mostrarFecha deja pasar el texto ya formateado', () => {
   assert.strictEqual(M.mostrarFecha('03/07/2021'), '03/07/2021');
   assert.strictEqual(M.mostrarFecha(''), '');
   assert.strictEqual(M.mostrarFecha(null), '');
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Fechas guardadas
+// ───────────────────────────────────────────────────────────────────
+
+test('formatearFechaCorta convierte Date a dd/mm/aaaa', () => {
+  // Sin esto, toString() sobre un Date grababa en la planilla
+  // "Wed Dec 04 2024 00:00:00 GMT-0300 (Argentina Standard Time)".
+  assert.strictEqual(M.formatearFechaCorta(new Date(2024, 11, 4)), '04/12/2024');
+  assert.strictEqual(M.formatearFechaCorta(new Date(2024, 0, 1)), '01/01/2024');
+});
+
+test('formatearFechaCorta rellena con cero', () => {
+  assert.strictEqual(M.formatearFechaCorta(new Date(2024, 8, 5)), '05/09/2024');
+});
+
+test('formatearFechaCorta acepta lo que ya está bien y lo deja igual', () => {
+  assert.strictEqual(M.formatearFechaCorta('04/12/2024'), '04/12/2024');
+});
+
+test('formatearFechaCorta no rompe lo que no es fecha', () => {
+  assert.strictEqual(M.formatearFechaCorta(''), '');
+  assert.strictEqual(M.formatearFechaCorta(null), '');
+  assert.strictEqual(M.formatearFechaCorta('sin dato'), 'sin dato');
+});
+
+test('el resultado no contiene texto de zona horaria', () => {
+  const salida = M.formatearFechaCorta(new Date(2024, 11, 4));
+  assert.ok(!salida.includes('GMT'));
+  assert.ok(!salida.includes('Standard Time'));
+  assert.match(salida, /^\d{2}\/\d{2}\/\d{4}$/);
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Aviso de admisiones nuevas
+// ───────────────────────────────────────────────────────────────────
+
+const NUEVA = {
+  alumno_nombre: 'Sofía Pérez', grado_solicitado: 'Sala de 4 años',
+  anio_vacante: '2027', tutor1_nombre: 'Ana Pérez',
+  email: 'ana@ejemplo.com', celular: '1141611054', nivel: 'Inicial'
+};
+
+test('el aviso de una sola admisión lleva el nombre en el asunto', () => {
+  const asunto = M.asuntoAvisoNuevas('Inicial', [NUEVA]);
+  assert.ok(asunto.includes('Sofía Pérez'));
+  assert.ok(asunto.includes('Sala de 4 años'));
+  assert.ok(asunto.includes('2027'));
+});
+
+test('varias admisiones van en un solo aviso', () => {
+  // Cinco mails seguidos se vuelven ruido y se dejan de leer.
+  const asunto = M.asuntoAvisoNuevas('Primaria', [NUEVA, NUEVA, NUEVA]);
+  assert.ok(asunto.includes('3 nuevas admisiones'));
+  assert.ok(asunto.includes('Primaria'));
+});
+
+test('el cuerpo lista cada alumno con grado y año', () => {
+  const cuerpo = M.textoAvisoNuevas('Inicial', [NUEVA], 'https://script.google.com/…/exec');
+  assert.ok(cuerpo.includes('Sofía Pérez'));
+  assert.ok(cuerpo.includes('Sala de 4 años'));
+  assert.ok(cuerpo.includes('2027'));
+  assert.ok(cuerpo.includes('Ana Pérez'));
+  assert.ok(cuerpo.includes('ana@ejemplo.com'));
+});
+
+test('el aviso lleva el link al sistema', () => {
+  const cuerpo = M.textoAvisoNuevas('Inicial', [NUEVA], 'https://script.google.com/abc/exec');
+  assert.ok(cuerpo.includes('https://script.google.com/abc/exec'));
+});
+
+test('sin link el aviso sale igual', () => {
+  // getUrl() falla si el proyecto todavía no se desplegó: el aviso es más
+  // útil sin link que no salir.
+  const cuerpo = M.textoAvisoNuevas('Inicial', [NUEVA], '');
+  assert.ok(cuerpo.includes('Sofía Pérez'));
+  assert.ok(!cuerpo.includes('undefined'));
+  assert.ok(!cuerpo.includes('null'));
+});
+
+test('el aviso destaca cuando declara inclusión', () => {
+  const con = M.textoAvisoNuevas('Primaria',
+    [Object.assign({}, NUEVA, { inclusion_solicitada: true })], '');
+  assert.ok(con.toLowerCase().includes('inclusión'));
+
+  const sin = M.textoAvisoNuevas('Primaria',
+    [Object.assign({}, NUEVA, { inclusion_solicitada: false })], '');
+  assert.ok(!sin.toLowerCase().includes('declara proyecto'));
+});
+
+test('una admisión sin datos no rompe el aviso', () => {
+  const cuerpo = M.textoAvisoNuevas('Inicial', [{ nivel: 'Inicial' }], '');
+  assert.ok(cuerpo.includes('(sin nombre)'));
+  assert.ok(!cuerpo.includes('undefined'));
 });

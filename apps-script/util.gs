@@ -147,6 +147,26 @@ function calcularEdad(fechaNac, referencia) {
   return edad < 0 ? '' : edad.toString();
 }
 
+/**
+ * Formatea una fecha como dd/mm/aaaa.
+ *
+ * Es lo que se guarda en la planilla para las fechas de nacimiento. Sin esto,
+ * una columna con formato de fecha vuelve como Date y `toString()` la escribe
+ * como "Wed Dec 04 2024 00:00:00 GMT-0300 (Argentina Standard Time)" — que es
+ * lo que quedaba grabado y se veía en la planilla.
+ *
+ * Se arma a mano en vez de con Utilities.formatDate para poder testearlo sin
+ * Apps Script. Lo que no es fecha vuelve como texto, tal cual vino.
+ */
+function formatearFechaCorta(valor) {
+  var d = aFecha(valor);
+  if (!d) return (valor === null || valor === undefined) ? '' : valor.toString().trim();
+
+  var dia = d.getDate();
+  var mes = d.getMonth() + 1;
+  return (dia < 10 ? '0' : '') + dia + '/' + (mes < 10 ? '0' : '') + mes + '/' + d.getFullYear();
+}
+
 /** Días enteros entre dos fechas, ignorando la hora. */
 function diasEntre(desde, hasta) {
   var a = aFecha(desde);
@@ -166,6 +186,7 @@ if (typeof module !== 'undefined' && module.exports) {
     normalizarParaComparar: normalizarParaComparar,
     aFecha: aFecha,
     calcularEdad: calcularEdad,
-    diasEntre: diasEntre
+    diasEntre: diasEntre,
+    formatearFechaCorta: formatearFechaCorta
   });
 }

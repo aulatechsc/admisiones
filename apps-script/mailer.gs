@@ -304,6 +304,113 @@ function instalarTriggerRespuestas() {
   return { ok: true };
 }
 
+
+// ───────────────────────────────────────────────────────────────────
+// Aviso interno de admisiones nuevas
+// ───────────────────────────────────────────────────────────────────
+
+/**
+ * Arma el texto del aviso que recibe el equipo de un nivel.
+ *
+ * Puro para poder testearlo: lo que importa es que el mail diga de un vistazo
+ * quién entró y lleve el link, no que salga por Gmail.
+ */
+function textoAvisoNuevas(nivel, admisiones, urlSitio) {
+  var lineas = [
+    admisiones.length === 1
+      ? 'Entró una nueva solicitud de admisión para ' + nivel + '.'
+      : 'Entraron ' + admisiones.length + ' nuevas solicitudes de admisión para ' + nivel + '.',
+    ''
+  ];
+
+  admisiones.forEach(function (a) {
+    lineas.push('• ' + (a.alumno_nombre || '(sin nombre)') +
+      ' — ' + (a.grado_solicitado || 'sin grado') +
+      ' — ' + (a.anio_vacante || 'sin año'));
+
+    var familia = [];
+    if (a.tutor1_nombre) familia.push(a.tutor1_nombre);
+    if (a.email) familia.push(a.email);
+    if (a.celular) familia.push(a.celular);
+    if (familia.length) lineas.push('  ' + familia.join(' · '));
+
+    if (aBooleano(a.inclusion_solicitada) === true) {
+      lineas.push('  Declara proyecto de inclusión.');
+    }
+    lineas.push('');
+  });
+
+  if (urlSitio) {
+    lineas.push('Verlas en el sistema:');
+    lineas.push(urlSitio);
+    lineas.push('');
+  }
+
+  lineas.push('Este aviso es automático, no hace falta responderlo.');
+  return lineas.join('\n');
+}
+
+/** Asunto del aviso, con el nombre cuando es una sola. */
+function asuntoAvisoNuevas(nivel, admisiones) {
+  if (admisiones.length === 1) {
+    var a = admisiones[0];
+    return 'Nueva admisión ' + nivel + ' — ' + (a.alumno_nombre || 'sin nombre') +
+      ' (' + (a.grado_solicitado || 's/d') + ', ' + (a.anio_vacante || 's/d') + ')';
+  }
+  return admisiones.length + ' nuevas admisiones — ' + nivel;
+}
+
+/**
+ * Avisa a cada nivel de las admisiones que acaban de entrar.
+ *
+ * Un mail por nivel con todas las suyas, no uno por admisión: si entran cinco
+ * juntas, cinco mails seguidos se vuelven ruido y se dejan de leer.
+ *
+ * Nunca lanza. La admisión ya está guardada antes de llegar acá, así que una
+ * falla de Gmail no puede hacer perder una inscripción ni abortar la
+ * importación.
+ */
+function avisarNuevasAdmisiones(nuevas) {
+  if (!nuevas || !nuevas.length) return { ok: true, avisos: 0 };
+
+  var urlSitio = '';
+  try {
+    urlSitio = ScriptApp.getService().getUrl() || '';
+  } catch (err) {
+    console.warn('No se pudo obtener la URL del sitio: ' + err);
+  }
+
+  var porNivel = {};
+  nuevas.forEach(function (a) {
+    if (!porNivel[a.nivel]) porNivel[a.nivel] = [];
+    porNivel[a.nivel].push(a);
+  });
+
+  var enviados = 0;
+
+  Object.keys(porNivel).forEach(function (nivel) {
+    var destinatarios = (COPIAS_POR_NIVEL[nivel] || []).filter(esMailValido);
+    if (!destinatarios.length) {
+      console.warn('Sin destinatarios configurados para ' + nivel + ': no se avisa.');
+      return;
+    }
+
+    try {
+      MailApp.sendEmail({
+        to: destinatarios.join(','),
+        subject: asuntoAvisoNuevas(nivel, porNivel[nivel]),
+        body: textoAvisoNuevas(nivel, porNivel[nivel], urlSitio),
+        name: REMITENTE.nombre
+      });
+      enviados++;
+    } catch (err) {
+      console.error('No se pudo avisar a ' + nivel + ': ' + err);
+    }
+  });
+
+  return { ok: true, avisos: enviados };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   Object.assign(module.exports, {
     codificarHeader: codificarHeader,
@@ -313,6 +420,8 @@ if (typeof module !== 'undefined' && module.exports) {
     esMailValido: esMailValido,
     COPIAS_POR_NIVEL: COPIAS_POR_NIVEL,
     REMITENTE: REMITENTE,
-    NIVELES: NIVELES
+    NIVELES: NIVELES,
+    textoAvisoNuevas: textoAvisoNuevas,
+    asuntoAvisoNuevas: asuntoAvisoNuevas
   });
 }

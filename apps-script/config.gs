@@ -210,6 +210,16 @@ var COPIAS_POR_NIVEL = {
 var CAMPOS_BOOLEANOS = ['bilingue', 'inclusion_solicitada', 'lista_espera'];
 
 /**
+ * Campos que se guardan y se muestran como dd/mm/aaaa.
+ *
+ * Cuando la columna de origen tiene formato de fecha, getValues() devuelve un
+ * Date y toString() lo escribe como "Wed Dec 04 2024 00:00:00 GMT-0300
+ * (Argentina Standard Time)". La ingesta los formatea al escribir y la lectura
+ * los normaliza otra vez, por si quedó alguno viejo sin limpiar.
+ */
+var CAMPOS_FECHA_CORTA = ['alumno_fecha_nac'];
+
+/**
  * Opciones del campo "Trayectoria escolar actual" en los formularios de
  * Inicial y Primaria.
  *
@@ -242,6 +252,7 @@ if (typeof module !== 'undefined' && module.exports) {
     ESTADO_INICIAL: ESTADO_INICIAL,
     MAPEO_SITIO: MAPEO_SITIO,
     CAMPOS_BOOLEANOS: CAMPOS_BOOLEANOS,
+    CAMPOS_FECHA_CORTA: CAMPOS_FECHA_CORTA,
     TRAYECTORIAS: TRAYECTORIAS,
     REMITENTE: REMITENTE,
     COPIAS_POR_NIVEL: COPIAS_POR_NIVEL

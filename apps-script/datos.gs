@@ -11,17 +11,6 @@
 // Admisiones
 // ───────────────────────────────────────────────────────────────────
 
-/**
- * Campos de fecha que se muestran como dd/mm/aaaa.
- *
- * Cuando la columna de la planilla tiene formato de fecha, getValues()
- * devuelve un Date, y al serializarlo hacia el sitio llega como
- * "Tue Sep 10 2024 00:00:00 GMT-0300 (Argentina Standard Time)".
- * Se normaliza acá, del lado del servidor, para que el front no tenga que
- * adivinar qué le llegó.
- */
-var CAMPOS_FECHA_CORTA = ['alumno_fecha_nac'];
-
 /** Pasa a texto dd/mm/aaaa los campos de fecha de una admisión. */
 function normalizarFechasVisibles_(a) {
   CAMPOS_FECHA_CORTA.forEach(function (campo) {
@@ -371,8 +360,29 @@ function leerUsuarios() {
     });
 }
 
+/**
+ * Quién está usando el sistema en esta ejecución.
+ *
+ * Lo fija `ejecutar()` con el mail ya verificado, y es lo que hace que el
+ * recorrido diga quién hizo cada cosa.
+ *
+ * Servido por Apps Script, Session.getActiveUser() alcanzaría. Desde Vercel
+ * no: no hay sesión de Google en la llamada, así que devolvería vacío o la
+ * cuenta dueña del script y todos los eventos quedarían firmados por
+ * admision@ en lugar de por la persona.
+ *
+ * Cada ejecución de Apps Script es un scope aislado, así que esta variable
+ * nunca se mezcla entre dos personas usando el sitio a la vez.
+ */
+var USUARIO_EN_CURSO = '';
+
+function fijarUsuarioActual(email) {
+  USUARIO_EN_CURSO = email || '';
+}
+
 /** Mail de quien está usando el sistema. */
 function usuarioActual() {
+  if (USUARIO_EN_CURSO) return USUARIO_EN_CURSO;
   try {
     return Session.getActiveUser().getEmail() || 'sistema';
   } catch (err) {

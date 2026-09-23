@@ -11,7 +11,7 @@ const path = require('node:path');
 const { cargar } = require('./helpers');
 
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
-const A = cargar('util.gs', 'config.gs', 'plantillas.gs', 'ingesta.gs', 'api.gs');
+const A = cargar('util.gs', 'config.gs', 'plantillas.gs', 'mailer.gs', 'ingesta.gs', 'api.gs');
 
 // ───────────────────────────────────────────────────────────────────
 // El sitio
@@ -173,4 +173,27 @@ test('un admin alcanza todos los niveles', () => {
 
 test('un editor sin niveles no alcanza nada', () => {
   assert.deepStrictEqual(A.nivelesDe({ rol: 'editor', niveles: [] }), []);
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Identidad de quien opera
+// ───────────────────────────────────────────────────────────────────
+
+test('el usuario en curso se fija con el mail verificado', () => {
+  // Servido por Apps Script, Session.getActiveUser() alcanza. Desde Vercel no
+  // hay sesión de Google en la llamada: sin esto, todos los eventos quedarían
+  // firmados por la cuenta dueña del script en vez de por la persona.
+  const api = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'api.gs'), 'utf8');
+  const cuerpo = api.slice(api.indexOf('function ejecutar('));
+  assert.ok(cuerpo.slice(0, 400).includes('fijarUsuarioActual(email)'),
+    'ejecutar() no fija el usuario antes de operar');
+});
+
+test('usuarioActual prefiere el mail verificado sobre la sesión', () => {
+  const datos = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'datos.gs'), 'utf8');
+  const cuerpo = datos.slice(datos.indexOf('function usuarioActual('));
+  const hasta = cuerpo.indexOf('\n}');
+  assert.ok(cuerpo.slice(0, hasta).indexOf('USUARIO_EN_CURSO') <
+            cuerpo.slice(0, hasta).indexOf('getActiveUser'),
+    'consulta la sesión antes que el mail verificado');
 });

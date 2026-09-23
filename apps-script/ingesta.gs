@@ -111,6 +111,10 @@ function mapearFilaSitio(nivel, encabezados, fila) {
       admision[destino] = (b === null) ? '' : b;
     } else if (destino === 'fecha_alta') {
       admision[destino] = normalizarFecha(valor);
+    } else if (CAMPOS_FECHA_CORTA.indexOf(destino) !== -1) {
+      // Una columna con formato de fecha vuelve como Date: sin formatear,
+      // toString() la graba como "Wed Dec 04 2024 00:00:00 GMT-0300 (…)".
+      admision[destino] = formatearFechaCorta(valor);
     } else {
       admision[destino] = (valor === null || valor === undefined) ? '' : valor.toString().trim();
     }
@@ -273,6 +277,14 @@ function importarDesdeSitio() {
         resumen.fichas = generarFichasPendientes(nuevas.map(function (a) { return a.id; }));
       } catch (err) {
         console.error('No se pudieron generar las fichas nuevas: ' + err);
+      }
+
+      // Aviso al equipo de cada nivel. Va al final y tampoco puede tumbar la
+      // importación: las filas ya están escritas.
+      try {
+        resumen.avisos = avisarNuevasAdmisiones(nuevas);
+      } catch (err) {
+        console.error('No se pudo avisar de las admisiones nuevas: ' + err);
       }
     }
 

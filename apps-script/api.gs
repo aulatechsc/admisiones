@@ -111,6 +111,10 @@ function llamar(accion, params) {
  * que estar cargado y activo en la solapa `Usuarios`.
  */
 function ejecutar(accion, params, email) {
+  // Deja registrado quién hace cada cosa. Desde Vercel no hay sesión de
+  // Google en la llamada, así que este es el único dato de identidad.
+  fijarUsuarioActual(email);
+
   var usuario = autorizar(email);
   if (!usuario) {
     return {

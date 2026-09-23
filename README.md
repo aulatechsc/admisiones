@@ -17,6 +17,8 @@ con las familias, enviar las respuestas desde plantillas y generar la ficha PDF.
 - **[`docs/instalacion.md`](docs/instalacion.md)** — cómo dejar andando la
   planilla nueva. Son 10 minutos y no toca nada de lo que hoy funciona.
 - **[`docs/sitio.md`](docs/sitio.md)** — desplegar el sitio.
+- **[`docs/vercel.md`](docs/vercel.md)** — publicarlo en Vercel, para que
+  entre bien desde el celular.
 - **[`docs/email.md`](docs/email.md)** — mudar el sistema a `admision@`,
   configurar el envío y cómo llegan las respuestas a cada directora.
 - **[`docs/esquema-unificado.md`](docs/esquema-unificado.md)** — relevamiento
@@ -44,6 +46,7 @@ Lo que falta:
       esquema-unificado.md    Relevamiento y diseño del modelo de datos
       instalacion.md          Puesta en marcha paso a paso
       email.md                Mudanza a admision@ y envío de mails
+      vercel.md               Publicar el sitio fuera de Apps Script
     apps-script/
       util.gs                 Normalización y acceso genérico a solapas
       config.gs               Esquema de solapas y mapeo desde el sitio
@@ -72,7 +75,7 @@ Lo que falta:
 
     npm test
 
-148 tests. Las funciones puras no tocan SpreadsheetApp y corren con el runner
+162 tests. Las funciones puras no tocan SpreadsheetApp y corren con el runner
 de node, sin necesidad de una planilla. Los de regresión verifican que las
 plantillas migradas producen exactamente el mismo texto que los scripts hoy en
 producción.
