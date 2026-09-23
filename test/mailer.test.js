@@ -162,10 +162,14 @@ test('el pie de la ficha no lleva markdown', () => {
 
 
 
-test('mostrarFecha deja pasar el texto ya formateado', () => {
-  assert.strictEqual(M.mostrarFecha('03/07/2021'), '03/07/2021');
-  assert.strictEqual(M.mostrarFecha(''), '');
-  assert.strictEqual(M.mostrarFecha(null), '');
+test('la ficha formatea la fecha aunque venga como texto largo', () => {
+  // La ficha usaba su propia mostrarFecha, que devolvía tal cual cualquier
+  // cosa que no fuera un Date. Una fecha guardada como
+  // "Wed Dec 04 2024 00:00:00 GMT-0300 (…)" salía impresa así en el PDF.
+  assert.strictEqual(
+    M.formatearFechaCorta('Wed Dec 04 2024 00:00:00 GMT-0300 (Argentina Standard Time)'),
+    '04/12/2024'
+  );
 });
 
 // ───────────────────────────────────────────────────────────────────
@@ -261,4 +265,12 @@ test('una admisión sin datos no rompe el aviso', () => {
   const cuerpo = M.textoAvisoNuevas('Inicial', [{ nivel: 'Inicial' }], '');
   assert.ok(cuerpo.includes('(sin nombre)'));
   assert.ok(!cuerpo.includes('undefined'));
+});
+
+test('el aviso a las directoras está apagado mientras se arma el sistema', () => {
+  // Pedido explícito: nada de mails al equipo hasta que esté todo listo.
+  // Los mails a las familias no dependen de esto — salen sólo al tocar
+  // "Enviar" en el sitio.
+  assert.strictEqual(M.AVISAR_NUEVAS_ADMISIONES, false,
+    'los avisos automáticos quedaron encendidos');
 });

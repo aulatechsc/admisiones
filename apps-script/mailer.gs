@@ -372,6 +372,9 @@ function asuntoAvisoNuevas(nivel, admisiones) {
  * importación.
  */
 function avisarNuevasAdmisiones(nuevas) {
+  if (!AVISAR_NUEVAS_ADMISIONES) {
+    return { ok: true, avisos: 0, motivo: 'AVISAR_NUEVAS_ADMISIONES está en false' };
+  }
   if (!nuevas || !nuevas.length) return { ok: true, avisos: 0 };
 
   var urlSitio = '';

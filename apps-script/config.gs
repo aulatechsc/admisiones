@@ -187,6 +187,20 @@ var REMITENTE = {
 };
 
 /**
+ * Interruptor del aviso automático a las directoras cuando entra una
+ * admisión nueva.
+ *
+ * En false mientras el sistema se termina de armar: hasta entonces las
+ * importaciones son de prueba y no tiene sentido que cada una dispare mails
+ * al equipo. El aviso ya está escrito y probado — pasar esto a true lo
+ * enciende, sin tocar nada más.
+ *
+ * Los mails a las familias NO dependen de esto: ésos salen sólo cuando
+ * alguien toca "Enviar" en el sitio.
+ */
+var AVISAR_NUEVAS_ADMISIONES = false;
+
+/**
  * Quién recibe copia de cada mail, por nivel, y sigue la conversación con la
  * familia desde su propia bandeja.
  *
@@ -255,6 +269,7 @@ if (typeof module !== 'undefined' && module.exports) {
     CAMPOS_FECHA_CORTA: CAMPOS_FECHA_CORTA,
     TRAYECTORIAS: TRAYECTORIAS,
     REMITENTE: REMITENTE,
-    COPIAS_POR_NIVEL: COPIAS_POR_NIVEL
+    COPIAS_POR_NIVEL: COPIAS_POR_NIVEL,
+    AVISAR_NUEVAS_ADMISIONES: AVISAR_NUEVAS_ADMISIONES
   });
 }

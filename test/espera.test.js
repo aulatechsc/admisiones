@@ -230,26 +230,42 @@ test('el sitio muestra la fecha de nacimiento, no un Date crudo', () => {
 // Colores por nivel
 // ───────────────────────────────────────────────────────────────────
 
-test('cada nivel tiene su propio color', () => {
-  ['Inicial', 'Primaria', 'Secundaria'].forEach((nivel) => {
-    assert.ok(HTML.includes('.nivel.n-' + nivel), `falta el color de ${nivel}`);
-    assert.ok(HTML.includes('.tarjeta.n-' + nivel), `falta la franja de ${nivel}`);
+test('el color de la tarjeta refleja la situación, no el nivel', () => {
+  // Cada persona ve sólo su nivel, así que colorear por nivel no agrega
+  // información. El color se reserva para en qué punto está la admisión.
+  ['verde', 'amarillo', 'rojo', 'gris'].forEach((c) => {
+    assert.ok(HTML.includes('.tarjeta.s-' + c), `falta la franja ${c}`);
   });
+  assert.ok(HTML.includes("'<article class=\"tarjeta s-' + colorSituacion(a)"));
 });
 
-test('los colores de nivel son distintos entre sí', () => {
-  const css = (HTML.match(/<style>([\s\S]*?)<\/style>/) || ['', ''])[1];
-  const usados = ['Inicial', 'Primaria', 'Secundaria'].map((nivel) => {
-    const linea = css.match(new RegExp('\\.nivel\\.n-' + nivel + '\\s*\\{[^}]*\\}'));
-    assert.ok(linea, `falta la regla de ${nivel}`);
-    return linea[0].match(/color:\s*var\(--([a-z]+)\)/)[1];
-  });
-  assert.strictEqual(new Set(usados).size, 3, 'dos niveles comparten color: ' + usados.join(', '));
+test('colorSituacion mapea cada caso', () => {
+  const colorSituacion = funcionDelSitio('urgencia', 'colorSituacion');
+  const tranquila = { tipo: 'esperando', dias: 1 };
+
+  assert.strictEqual(colorSituacion({ estado: 'matriculada', espera: { tipo: 'cerrada' } }), 'verde');
+  assert.strictEqual(colorSituacion({ estado: 'desistio', espera: { tipo: 'cerrada' } }), 'gris');
+  assert.strictEqual(colorSituacion({ estado: 'sin_vacante', espera: { tipo: 'cerrada' } }), 'gris');
+
+  // Sin contactar es rojo aunque recién haya entrado
+  assert.strictEqual(colorSituacion({ estado: 'nueva', espera: { tipo: 'sin_contactar', dias: 0 } }), 'rojo');
+
+  assert.strictEqual(colorSituacion({ estado: 'entrevista_agendada', espera: tranquila }), 'amarillo');
+  assert.strictEqual(colorSituacion({ estado: 'contactada', espera: tranquila }), 'amarillo');
 });
 
-test('la tarjeta y el panel marcan el nivel', () => {
-  assert.ok(HTML.includes("'<span class=\"nivel n-' + esc(a.nivel)"));
-  assert.ok(HTML.includes("'<article class=\"tarjeta n-' + esc(a.nivel)"));
+test('la urgencia gana sobre la etapa', () => {
+  // Una entrevista agendada hace tres semanas sin respuesta no es "en
+  // proceso", es un problema.
+  const colorSituacion = funcionDelSitio('urgencia', 'colorSituacion');
+  assert.strictEqual(
+    colorSituacion({ estado: 'entrevista_agendada', espera: { tipo: 'esperando', dias: 21 } }),
+    'rojo'
+  );
+  assert.strictEqual(
+    colorSituacion({ estado: 'visita', espera: { tipo: 'nos_responden', dias: 2 } }),
+    'rojo'
+  );
 });
 
 // ───────────────────────────────────────────────────────────────────
@@ -384,15 +400,8 @@ test('el sitio muestra en qué etapa se cortó', () => {
 // ───────────────────────────────────────────────────────────────────
 
 test('la lista tiene acceso directo a la ficha', () => {
-  assert.ok(HTML.includes('ficha-rapida'), 'falta el botón de ficha en la lista');
+  assert.ok(HTML.includes('acciones-fila'), 'falta la barra de acciones en la fila');
   assert.ok(HTML.includes('data-pdf='), 'el botón no lleva el link');
-});
-
-test('tocar la ficha no abre el panel', () => {
-  // Sin frenar la propagación, el click llega también a la tarjeta y se abre
-  // el panel detrás de la pestaña del PDF.
-  const bloque = HTML.slice(HTML.indexOf(".ficha-rapida[data-pdf]"));
-  assert.ok(bloque.slice(0, 400).includes('stopPropagation'), 'el click se propaga a la tarjeta');
 });
 
 test('el DNI ya no se pide en el sitio', () => {
@@ -427,4 +436,90 @@ test('migrarEsquema cubre todas las solapas', () => {
     assert.ok(cuerpo.includes('HOJAS.' + h), `la migración no cubre ${h}`);
   });
   assert.ok(cuerpo.includes('HOJA_PLANTILLAS'));
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Trabajar desde la lista, sin abrir la ficha
+// ───────────────────────────────────────────────────────────────────
+
+test('se puede cambiar el estado y mandar mail desde la lista', () => {
+  assert.ok(HTML.includes('data-estado-de='), 'falta el disparador del menú de estado');
+  assert.ok(HTML.includes('data-mail-de='), 'falta el botón de mail en la fila');
+  assert.ok(HTML.includes('function abrirMenuEstado('), 'falta el menú de estado');
+});
+
+test('el menú de estado pide la nota en el mismo paso', () => {
+  // Preguntarla después, en otra pantalla, es garantía de que nadie la
+  // escriba: el motivo se sabe justo cuando se cambia el estado.
+  const menu = HTML.slice(HTML.indexOf('function abrirMenuEstado('));
+  const hasta = menu.indexOf('\n/* ─');
+  assert.ok(menu.slice(0, hasta).includes('notaEstadoRapida'), 'el menú no pide nota');
+  assert.ok(menu.slice(0, hasta).includes('nota: nota'), 'la nota no se manda al backend');
+});
+
+test('las acciones de la fila no abren también la ficha', () => {
+  // Sin frenar la propagación, el click llega a la tarjeta y se abre el panel
+  // detrás de lo que se acaba de hacer.
+  ['data-pdf', 'data-mail-de', 'data-estado-de'].forEach((attr) => {
+    const i = HTML.indexOf("querySelectorAll('[" + attr + "]')");
+    assert.ok(i !== -1, `no hay handler para ${attr}`);
+    assert.ok(HTML.slice(i, i + 300).includes('stopPropagation'),
+      `${attr} deja propagar el click`);
+  });
+});
+
+test('el menú de estado separa el flujo de los desvíos', () => {
+  const menu = HTML.slice(HTML.indexOf('function abrirMenuEstado('));
+  assert.ok(menu.slice(0, 2500).includes('ORDEN_MAXIMO_FLUJO'));
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Claro / oscuro
+// ───────────────────────────────────────────────────────────────────
+
+test('hay botón para cambiar de tema', () => {
+  assert.ok(HTML.includes('id="btnTema"'));
+  assert.ok(HTML.includes('function aplicarTema('));
+});
+
+test('la preferencia de tema se guarda por navegador', () => {
+  assert.ok(HTML.includes("localStorage.getItem('tema')"));
+  assert.ok(HTML.includes("localStorage.setItem('tema'"));
+});
+
+test('el tema tolera que localStorage esté bloqueado', () => {
+  // En una ventana privada o con las cookies bloqueadas, localStorage tira
+  // excepción al leerlo. Sin try/catch, el sitio entero queda en blanco.
+  const guardado = HTML.slice(HTML.indexOf('function temaGuardado('));
+  assert.ok(guardado.slice(0, 200).includes('catch'), 'temaGuardado no protege la lectura');
+
+  const guardar = HTML.slice(HTML.indexOf('function guardarTema('));
+  assert.ok(guardar.slice(0, 250).includes('catch'), 'guardarTema no protege la escritura');
+});
+
+test('sin preferencia elegida se sigue al sistema', () => {
+  const aplicar = HTML.slice(HTML.indexOf('function aplicarTema('));
+  const hasta = aplicar.indexOf('\n}');
+  assert.ok(aplicar.slice(0, hasta).includes('removeAttribute'),
+    'no vuelve a seguir al sistema cuando no hay preferencia');
+});
+
+// ───────────────────────────────────────────────────────────────────
+// Ficha: fecha y permisos
+// ───────────────────────────────────────────────────────────────────
+
+test('la ficha usa el formateador único de fechas', () => {
+  // Tenía su propia mostrarFecha, que devolvía tal cual cualquier cosa que no
+  // fuera un Date: una fecha guardada como texto largo salía así en el PDF.
+  const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
+  assert.ok(ficha.includes('formatearFechaCorta(a.alumno_fecha_nac)'));
+  assert.ok(!ficha.includes('function mostrarFecha('), 'quedó la versión duplicada');
+});
+
+test('la ficha se comparte con el dominio, no con internet', () => {
+  // Lleva nombre, fecha de nacimiento y contacto de un menor. Con ANYONE
+  // quedaría accesible sin login a cualquiera que reciba la URL.
+  const ficha = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'fichas.gs'), 'utf8');
+  assert.ok(ficha.includes('DOMAIN_WITH_LINK'), 'no se comparte con el dominio');
+  assert.ok(!ficha.includes('Access.ANYONE'), 'la ficha queda pública en internet');
 });

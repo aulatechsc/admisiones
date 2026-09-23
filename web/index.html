@@ -117,6 +117,15 @@ body {
 .usuario .datos { text-align: right; line-height: 1.3; }
 .usuario .datos b { display: block; font-size: 13px; font-weight: 550; }
 .usuario .datos small { color: var(--texto-suave); font-size: 11.5px; }
+.icono-solo {
+  width: 32px; height: 32px; padding: 0; border-radius: var(--r-m);
+  display: grid; place-items: center;
+  border: 1px solid var(--linea-fuerte); background: var(--superficie);
+  color: var(--texto-medio);
+}
+.icono-solo svg { width: 16px; height: 16px; }
+.icono-solo:hover { color: var(--marca); border-color: var(--marca); }
+
 .avatar {
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--marca); color: #fff;
@@ -237,17 +246,62 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
   letter-spacing: .05em; padding: 2px 7px; border-radius: var(--r-s);
   background: var(--gris-bg); color: var(--gris);
 }
-/* Un color por nivel: con los tres mezclados en una sola lista, el color es
-   lo que permite ubicar el nivel sin leer. */
-.nivel.n-Inicial    { background: var(--cyan-bg);    color: var(--cyan); }
-.nivel.n-Primaria   { background: var(--verde-bg);   color: var(--verde); }
-.nivel.n-Secundaria { background: var(--violeta-bg); color: var(--violeta); }
+/* El nivel va en gris: cada persona ve sólo el suyo, así que colorearlo no
+   agrega información. El color se reserva para la situación, que es lo que
+   hay que poder leer de un vistazo. */
+.nivel.n-Inicial, .nivel.n-Primaria, .nivel.n-Secundaria {
+  background: var(--gris-bg); color: var(--gris);
+}
 
-/* Franja lateral de color en la tarjeta, para distinguir de un golpe de vista */
-.tarjeta { border-left-width: 3px; }
-.tarjeta.n-Inicial    { border-left-color: var(--cyan); }
-.tarjeta.n-Primaria   { border-left-color: var(--verde); }
-.tarjeta.n-Secundaria { border-left-color: var(--violeta); }
+/* Franja lateral según en qué punto está la admisión:
+     verde    matriculada
+     amarillo en proceso — contactada, entrevistas, visita
+     rojo     sin contactar, o demasiados días sin movimiento
+     gris     cerrada sin matrícula */
+.tarjeta { border-left-width: 4px; }
+.tarjeta.s-verde    { border-left-color: var(--verde); }
+.tarjeta.s-amarillo { border-left-color: var(--ambar); }
+.tarjeta.s-rojo     { border-left-color: var(--rojo); }
+.tarjeta.s-gris     { border-left-color: var(--linea-fuerte); }
+
+/* Acciones desde la lista, sin abrir la ficha */
+.acciones-fila { display: flex; gap: 5px; flex: none; }
+.acciones-fila button {
+  width: 30px; height: 30px; padding: 0;
+  display: grid; place-items: center; border-radius: var(--r-s);
+  border: 1px solid var(--linea-fuerte); background: var(--superficie);
+  color: var(--texto-medio);
+}
+.acciones-fila button svg { width: 15px; height: 15px; }
+.acciones-fila button:hover { color: var(--marca); border-color: var(--marca); }
+.acciones-fila .apagado { border-style: dashed; color: var(--texto-suave); opacity: .4; cursor: default; }
+.acciones-fila .apagado:hover { color: var(--texto-suave); border-color: var(--linea-fuerte); }
+
+/* Menú de estado anclado a la tarjeta */
+.menu-estado {
+  position: absolute; z-index: 70; min-width: 250px;
+  background: var(--superficie); border: 1px solid var(--linea-fuerte);
+  border-radius: var(--r-l); box-shadow: var(--sombra-3); padding: 7px;
+}
+.menu-estado .opcion {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 9px; border: none; background: none; border-radius: var(--r-s);
+  font: inherit; font-size: 13.5px; color: var(--texto); cursor: pointer; text-align: left;
+}
+.menu-estado .opcion:hover { background: var(--marca-suave); }
+.menu-estado .opcion .bolita-estado {
+  width: 9px; height: 9px; border-radius: 50%; flex: none; background: currentColor;
+}
+.menu-estado .opcion.actual { font-weight: 650; }
+.menu-estado .separador { height: 1px; background: var(--linea); margin: 5px 3px; }
+.menu-estado .nota {
+  width: 100%; margin: 4px 0 6px; padding: 7px 9px; font: inherit; font-size: 13px;
+  border: 1px solid var(--linea-fuerte); border-radius: var(--r-s);
+  background: var(--superficie-alta); color: var(--texto);
+}
+.menu-estado .ayuda {
+  font-size: 11.5px; color: var(--texto-suave); padding: 2px 4px 6px;
+}
 
 .estado {
   display: inline-flex; align-items: center; gap: 6px;
@@ -532,6 +586,7 @@ code {
   </div>
 
   <div class="usuario">
+    <button id="btnTema" class="icono-solo" title="Cambiar entre claro y oscuro"></button>
     <div class="datos"><b id="uNombre"></b><small id="uNiveles"></small></div>
     <div class="avatar" id="uAvatar"></div>
   </div>
@@ -607,6 +662,10 @@ var ICO = {
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m20 6-11 11-5-5"/></svg>',
   alerta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
   cerrar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  sobre: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>',
+  marca: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  sol: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  luna: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
   ficha: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>',
   vacio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 13V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7"/><path d="M8 9h8M8 13h5"/></svg>'
 };
@@ -732,6 +791,27 @@ function textoEspera(espera) {
     RELOJ + esc(d === 0 ? 'Hoy' : d + 'd') + '</span>';
 }
 
+/**
+ * En qué punto está la admisión, para el color de la franja.
+ *
+ *   verde     matriculada
+ *   amarillo  en proceso: contactada, entrevistas, visita
+ *   rojo      sin contactar todavía, o demasiados días sin movimiento
+ *   gris      cerrada sin matrícula
+ *
+ * La urgencia gana sobre la etapa: una entrevista agendada hace tres semanas
+ * sin respuesta no es "en proceso", es un problema.
+ */
+function colorSituacion(a) {
+  if (a.estado === 'matriculada') return 'verde';
+  if (a.estado === 'sin_vacante' || a.estado === 'desistio') return 'gris';
+
+  if (urgencia(a.espera) === 'urgente' || urgencia(a.espera) === 'nuestra') return 'rojo';
+  if (a.estado === 'nueva') return 'rojo';
+
+  return 'amarillo';
+}
+
 function pintarLista() {
   var lista = document.getElementById('lista');
 
@@ -748,7 +828,7 @@ function pintarLista() {
   }
 
   lista.innerHTML = '<div class="grilla">' + admisiones.map(function (a) {
-    return '<article class="tarjeta n-' + esc(a.nivel) + '" data-id="' + esc(a.id) + '" tabindex="0">' +
+    return '<article class="tarjeta s-' + colorSituacion(a) + '" data-id="' + esc(a.id) + '" tabindex="0">' +
       '<div class="principal">' +
         '<div class="meta" style="margin:0 0 3px">' +
           '<span>' + esc(fechaCorta(a.fecha_alta)) + '</span>' +
@@ -762,23 +842,40 @@ function pintarLista() {
         '</div>' +
       '</div>' +
       textoEspera(a.espera) +
-      '<span class="estado e-' + esc(a.estado) + '" title="' +
-        (a.estado_previo ? esc(nombreEstado(a.estado) + ' en la etapa ' + nombreEstado(a.estado_previo)) : '') +
-        '">' + esc(nombreEstado(a.estado)) +
+      '<button class="estado e-' + esc(a.estado) + '" data-estado-de="' + esc(a.id) + '" ' +
+        'title="Cambiar de estado">' + esc(nombreEstado(a.estado)) +
         (a.estado_previo ? '<small style="opacity:.75;font-weight:500"> · ' +
           esc(nombreEstado(a.estado_previo)) + '</small>' : '') +
-      '</span>' +
-      (a.pdf_url
-        ? '<button class="ficha-rapida" data-pdf="' + esc(a.pdf_url) + '" title="Ver ficha">' +
-          ICO.ficha + '</button>'
-        : '<span class="ficha-rapida vacia" title="Todavía sin ficha">' + ICO.ficha + '</span>') +
+      '</button>' +
+      '<div class="acciones-fila">' +
+        '<button data-mail-de="' + esc(a.id) + '" title="Enviar mail">' + ICO.sobre + '</button>' +
+        (a.pdf_url
+          ? '<button data-pdf="' + esc(a.pdf_url) + '" title="Ver ficha">' + ICO.ficha + '</button>'
+          : '<button class="apagado" title="Todavía sin ficha">' + ICO.ficha + '</button>') +
+      '</div>' +
     '</article>';
   }).join('') + '</div>';
 
-  Array.prototype.forEach.call(lista.querySelectorAll('.ficha-rapida[data-pdf]'), function (b) {
+  // Cada acción frena la propagación: sin eso el click llega también a la
+  // tarjeta y se abre la ficha detrás de lo que se acaba de hacer.
+  Array.prototype.forEach.call(lista.querySelectorAll('[data-pdf]'), function (b) {
     b.onclick = function (ev) {
-      ev.stopPropagation();   // no abrir el panel al tocar la ficha
+      ev.stopPropagation();
       window.open(b.dataset.pdf, '_blank');
+    };
+  });
+
+  Array.prototype.forEach.call(lista.querySelectorAll('[data-mail-de]'), function (b) {
+    b.onclick = function (ev) {
+      ev.stopPropagation();
+      abrirMail(b.dataset.mailDe);
+    };
+  });
+
+  Array.prototype.forEach.call(lista.querySelectorAll('[data-estado-de]'), function (b) {
+    b.onclick = function (ev) {
+      ev.stopPropagation();
+      abrirMenuEstado(b, b.dataset.estadoDe);
     };
   });
 
@@ -788,6 +885,85 @@ function pintarLista() {
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrirPanel(t.dataset.id); }
     };
   });
+}
+
+/* ─── Menú de estado desde la lista ─── */
+
+var menuAbierto = null;
+
+function cerrarMenuEstado() {
+  if (menuAbierto) { menuAbierto.remove(); menuAbierto = null; }
+}
+
+/**
+ * Menú para cambiar el estado sin abrir la ficha, con un campo de nota.
+ *
+ * La nota se pide en el mismo paso porque es cuando se sabe por qué: "no
+ * contestó dos mails", "pidió esperar al año que viene". Preguntarla después,
+ * en otra pantalla, es garantía de que nadie la escriba.
+ */
+function abrirMenuEstado(boton, id) {
+  cerrarMenuEstado();
+
+  var a = null;
+  for (var i = 0; i < admisiones.length; i++) if (admisiones[i].id === id) a = admisiones[i];
+  if (!a) return;
+
+  var menu = document.createElement('div');
+  menu.className = 'menu-estado';
+
+  var flujo = estados.filter(function (e) { return Number(e.orden) <= ORDEN_MAXIMO_FLUJO; });
+  var ramas = estados.filter(function (e) { return Number(e.orden) > ORDEN_MAXIMO_FLUJO; });
+
+  function opciones(lista) {
+    return lista.map(function (e) {
+      return '<button class="opcion e-' + esc(e.id) + (e.id === a.estado ? ' actual' : '') +
+        '" data-ir="' + esc(e.id) + '" style="background:none">' +
+        '<span class="bolita-estado"></span>' + esc(e.nombre) +
+        (e.id === a.estado ? ' ·' : '') + '</button>';
+    }).join('');
+  }
+
+  menu.innerHTML =
+    '<div class="ayuda">' + esc(a.alumno_nombre) + '</div>' +
+    opciones(flujo) +
+    '<div class="separador"></div>' +
+    opciones(ramas) +
+    '<div class="separador"></div>' +
+    '<input class="nota" id="notaEstadoRapida" placeholder="Nota del cambio (opcional)">';
+
+  document.body.appendChild(menu);
+  menuAbierto = menu;
+
+  // Anclado al botón, corregido para no salirse de la pantalla
+  var r = boton.getBoundingClientRect();
+  var alto = menu.offsetHeight;
+  var arriba = r.bottom + 6 + alto > window.innerHeight && r.top - alto - 6 > 0;
+
+  menu.style.top = (window.scrollY + (arriba ? r.top - alto - 6 : r.bottom + 6)) + 'px';
+  menu.style.left = Math.max(10,
+    Math.min(window.scrollX + r.left, window.scrollX + window.innerWidth - menu.offsetWidth - 10)) + 'px';
+
+  Array.prototype.forEach.call(menu.querySelectorAll('[data-ir]'), function (b) {
+    b.onclick = function () {
+      var nota = document.getElementById('notaEstadoRapida').value;
+      var destino = b.dataset.ir;
+      cerrarMenuEstado();
+      if (destino === a.estado) return;
+
+      api('cambiarEstado', { id: id, estado: destino, nota: nota }).then(function (r2) {
+        if (!r2.ok) { flotante('Error: ' + r2.error); return; }
+        cargar();
+        flotante(a.alumno_nombre + ' → ' + nombreEstado(destino));
+      });
+    };
+  });
+
+  // Un click afuera cierra; el de adentro no debe burbujear a la tarjeta
+  menu.onclick = function (ev) { ev.stopPropagation(); };
+  setTimeout(function () {
+    document.addEventListener('click', cerrarMenuEstado, { once: true });
+  }, 0);
 }
 
 /* ─── Panel de la ficha ─── */
@@ -1228,7 +1404,8 @@ document.getElementById('modal').onclick = function (ev) {
 
 document.addEventListener('keydown', function (ev) {
   if (ev.key !== 'Escape') return;
-  if (document.getElementById('modal').classList.contains('visible')) cerrarModal();
+  if (menuAbierto) cerrarMenuEstado();
+  else if (document.getElementById('modal').classList.contains('visible')) cerrarModal();
   else cerrarPanel();
 });
 
@@ -1242,6 +1419,54 @@ document.getElementById('btnImportar').onclick = function () {
     cargar();
   });
 };
+
+/* ─── Claro / oscuro ─── */
+
+/**
+ * Tres estados: seguir al sistema, forzar claro, forzar oscuro.
+ *
+ * La preferencia se guarda en localStorage, que es por navegador y por
+ * persona — no se comparte ni viaja a la planilla. Si el navegador lo tiene
+ * bloqueado, el sitio funciona igual siguiendo al sistema.
+ */
+function temaGuardado() {
+  try { return localStorage.getItem('tema') || ''; } catch (e) { return ''; }
+}
+
+function guardarTema(t) {
+  try { t ? localStorage.setItem('tema', t) : localStorage.removeItem('tema'); } catch (e) { /* sin persistencia */ }
+}
+
+function temaDelSistema() {
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark' : 'light';
+}
+
+function aplicarTema() {
+  var elegido = temaGuardado();
+  var efectivo = elegido || temaDelSistema();
+
+  if (elegido) document.documentElement.setAttribute('data-theme', elegido);
+  else document.documentElement.removeAttribute('data-theme');
+
+  var b = document.getElementById('btnTema');
+  b.innerHTML = efectivo === 'dark' ? ICO.sol : ICO.luna;
+  b.title = efectivo === 'dark' ? 'Pasar a modo claro' : 'Pasar a modo oscuro';
+}
+
+document.getElementById('btnTema').onclick = function () {
+  var efectivo = temaGuardado() || temaDelSistema();
+  guardarTema(efectivo === 'dark' ? 'light' : 'dark');
+  aplicarTema();
+};
+
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+    if (!temaGuardado()) aplicarTema();   // sólo si no eligió a mano
+  });
+}
+
+aplicarTema();
 
 /* ─── Login ─── */
 

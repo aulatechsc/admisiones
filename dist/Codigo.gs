@@ -393,6 +393,20 @@ var REMITENTE = {
 };
 
 /**
+ * Interruptor del aviso automático a las directoras cuando entra una
+ * admisión nueva.
+ *
+ * En false mientras el sistema se termina de armar: hasta entonces las
+ * importaciones son de prueba y no tiene sentido que cada una dispare mails
+ * al equipo. El aviso ya está escrito y probado — pasar esto a true lo
+ * enciende, sin tocar nada más.
+ *
+ * Los mails a las familias NO dependen de esto: ésos salen sólo cuando
+ * alguien toca "Enviar" en el sitio.
+ */
+var AVISAR_NUEVAS_ADMISIONES = false;
+
+/**
  * Quién recibe copia de cada mail, por nivel, y sigue la conversación con la
  * familia desde su propia bandeja.
  *
@@ -1301,14 +1315,6 @@ var FICHA_POR_NIVEL = {
   }
 };
 
-/** Formatea una fecha para la ficha, venga como Date o como texto. */
-function mostrarFecha(valor) {
-  if (!valor) return '';
-  if (valor instanceof Date) {
-    return isNaN(valor.getTime()) ? '' : Utilities.formatDate(valor, 'GMT-3', 'dd/MM/yyyy');
-  }
-  return valor.toString().trim();
-}
 
 function estiloCelda_(celda, bg, color, tam, negrita, italica, texto, alineacion) {
   celda.setBackgroundColor(bg);
@@ -1447,7 +1453,7 @@ function generarFicha(idAdmision) {
   tituloSeccion(cfg.titulo);
   filaCajas([{ etiq: 'NOMBRE Y APELLIDO', val: a.alumno_nombre.toString().toUpperCase() }]);
   filaCajas([
-    { etiq: 'FECHA DE NACIMIENTO', val: mostrarFecha(a.alumno_fecha_nac) },
+    { etiq: 'FECHA DE NACIMIENTO', val: formatearFechaCorta(a.alumno_fecha_nac) },
     { etiq: 'DNI', val: a.alumno_dni || '' }
   ]);
   filaCajas([{ etiq: 'DIRECCIÓN', val: '' }]);
@@ -1504,6 +1510,17 @@ function generarFicha(idAdmision) {
 
   var archivo = carpetaFichas_().createFile(pdf);
   DriveApp.getFileById(doc.getId()).setTrashed(true);
+
+  // Visible para cualquiera del colegio que tenga el link, no para internet.
+  // La ficha lleva nombre, fecha de nacimiento y datos de contacto de un
+  // menor: con ANYONE quedaría accesible a cualquiera que reciba o adivine
+  // la URL, y sin login. Con DOMAIN alcanza para que la abra quien la
+  // necesite dentro de sancarlos.edu.ar.
+  try {
+    archivo.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    console.warn('No se pudieron ajustar los permisos de la ficha: ' + err);
+  }
 
   actualizarAdmision(idAdmision, { pdf_url: archivo.getUrl() });
 
@@ -1997,6 +2014,9 @@ function asuntoAvisoNuevas(nivel, admisiones) {
  * importación.
  */
 function avisarNuevasAdmisiones(nuevas) {
+  if (!AVISAR_NUEVAS_ADMISIONES) {
+    return { ok: true, avisos: 0, motivo: 'AVISAR_NUEVAS_ADMISIONES está en false' };
+  }
   if (!nuevas || !nuevas.length) return { ok: true, avisos: 0 };
 
   var urlSitio = '';
