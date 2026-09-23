@@ -95,6 +95,12 @@ body {
 .marca svg { width: 22px; height: 22px; color: var(--marca); flex: none; }
 .marca span { color: var(--texto-suave); font-weight: 400; }
 
+.marca .version {
+  font-size: 10.5px; font-weight: 500; color: var(--texto-suave);
+  border: 1px solid var(--linea); border-radius: 999px;
+  padding: 1px 7px; margin-left: 2px; letter-spacing: .2px;
+}
+
 .buscador { position: relative; flex: 1; max-width: 420px; margin-left: 8px; }
 .buscador svg {
   position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
@@ -236,7 +242,7 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
 .tarjeta .sub { font-size: 13px; color: var(--texto-suave); margin-top: 1px; }
 .tarjeta .derecha { display: flex; align-items: center; gap: 7px; justify-self: end; }
 .tarjeta:hover {
-  border-color: var(--linea-fuerte); box-shadow: var(--sombra-2);
+  box-shadow: var(--sombra-2);
   transform: translateY(-1px);
 }
 .tarjeta .principal { flex: 1; min-width: 0; }
@@ -262,16 +268,51 @@ button.sutil:hover:not(:disabled) { background: var(--gris-bg); border-color: tr
   background: var(--gris-bg); color: var(--gris);
 }
 
-/* Franja lateral según en qué punto está la admisión:
+/* La situación de cada familia se lee de lejos, sin leer una palabra:
      verde    matriculada
      amarillo en proceso — contactada, entrevistas, visita
      rojo     sin contactar, o demasiados días sin movimiento
-     gris     cerrada sin matrícula */
-.tarjeta { border-left-width: 4px; }
-.tarjeta.s-verde    { border-left-color: var(--verde); }
-.tarjeta.s-amarillo { border-left-color: var(--ambar); }
-.tarjeta.s-rojo     { border-left-color: var(--rojo); }
-.tarjeta.s-gris     { border-left-color: var(--linea-fuerte); }
+     gris     cerrada sin matrícula
+
+   Pinta la franja, el fondo y el borde. El fondo va en porcentaje sobre la
+   superficie y no con un color fijo, para que el mismo número sirva en claro
+   y en oscuro: mezclar 8% de rojo sobre blanco da un rosa muy suave, y sobre
+   el gris oscuro del tema nocturno da un bordó apenas insinuado. Más que eso
+   y el texto empieza a perder contraste. */
+.tarjeta { border-left-width: 5px; }
+
+.tarjeta.s-verde {
+  border-color: color-mix(in srgb, var(--verde) 28%, var(--linea));
+  border-left-color: var(--verde);
+  background: color-mix(in srgb, var(--verde) 8%, var(--superficie));
+}
+.tarjeta.s-amarillo {
+  border-color: color-mix(in srgb, var(--ambar) 30%, var(--linea));
+  border-left-color: var(--ambar);
+  background: color-mix(in srgb, var(--ambar) 9%, var(--superficie));
+}
+.tarjeta.s-rojo {
+  border-color: color-mix(in srgb, var(--rojo) 28%, var(--linea));
+  border-left-color: var(--rojo);
+  background: color-mix(in srgb, var(--rojo) 8%, var(--superficie));
+}
+.tarjeta.s-gris {
+  border-left-color: var(--linea-fuerte);
+  background: var(--superficie);
+}
+.tarjeta.s-gris:hover { border-color: var(--linea-fuerte); }
+
+/* En hover sube un punto, no se apaga: si no, pasar el mouse por la lista
+   hace parpadear los colores y se pierde la lectura de conjunto. */
+.tarjeta.s-verde:hover    { background: color-mix(in srgb, var(--verde) 13%, var(--superficie)); }
+.tarjeta.s-amarillo:hover { background: color-mix(in srgb, var(--ambar) 14%, var(--superficie)); }
+.tarjeta.s-rojo:hover     { background: color-mix(in srgb, var(--rojo) 13%, var(--superficie)); }
+
+/* La línea que separa el recorrido cuando baja a su propia fila tiene que
+   seguir viéndose sobre el fondo pintado. */
+.tarjeta.s-verde .medio    { border-top-color: color-mix(in srgb, var(--verde) 30%, transparent); }
+.tarjeta.s-amarillo .medio { border-top-color: color-mix(in srgb, var(--ambar) 32%, transparent); }
+.tarjeta.s-rojo .medio     { border-top-color: color-mix(in srgb, var(--rojo) 30%, transparent); }
 
 /* El recorrido va al medio de la tarjeta, con los mismos rótulos y el mismo
    tilde que en el panel — es el mismo componente, sólo que más chico. */
@@ -595,7 +636,13 @@ code {
 @media (max-width: 640px) {
   .topbar { padding: 0 14px; gap: 10px; }
   .usuario .datos { display: none; }
-  .buscador { max-width: none; }
+  .marca .version {
+  font-size: 10.5px; font-weight: 500; color: var(--texto-suave);
+  border: 1px solid var(--linea); border-radius: 999px;
+  padding: 1px 7px; margin-left: 2px; letter-spacing: .2px;
+}
+
+.buscador { max-width: none; }
   main { padding: 16px 14px 50px; }
   .panel { width: 100vw; }
   .acciones-barra { width: 100%; margin-left: 0; }
@@ -640,6 +687,10 @@ code {
       <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
     </svg>
     Admisiones <span>San Carlos</span>
+    <!-- El armador reemplaza "dev" por la fecha y hora de la compilación.
+         Está para poder contestar "¿estoy viendo la versión nueva?" mirando
+         la pantalla, en vez de adivinar si quedó algo cacheado. -->
+    <small class="version" title="Versión del sitio">2026-09-23 18:02</small>
   </div>
 
   <div class="buscador">

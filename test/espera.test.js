@@ -672,3 +672,13 @@ test('volver al recorrido borra el previo', () => {
 test('matricularse guarda la etapa anterior, no se borra', () => {
   assert.strictEqual(previoAlCambiar_(ESTADOS, 'visita', 'matriculada'), 'visita');
 });
+
+test('el sitio muestra su fecha de compilación', () => {
+  // Para poder distinguir "no anda" de "no redesplegué" mirando la pantalla.
+  assert.ok(HTML.includes('title="Versión del sitio">dev<'),
+    'falta el sello de versión que completa el armador');
+
+  const dist = fs.readFileSync(path.join(__dirname, '..', 'dist', 'index.html'), 'utf8');
+  assert.ok(/title="Versión del sitio">\d{4}-\d\d-\d\d \d\d:\d\d</.test(dist),
+    'el armador no completó el sello');
+});

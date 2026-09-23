@@ -101,7 +101,14 @@ function construir() {
   const salida = cabecera + '\n' + partes.join('\n\n') + '\n';
   fs.writeFileSync(path.join(DESTINO, 'Codigo.gs'), salida, 'utf8');
 
-  fs.copyFileSync(path.join(RAIZ, 'web', 'index.html'), path.join(DESTINO, 'index.html'));
+  // El sitio lleva la fecha de compilación a la vista. Sin eso, "no veo los
+  // cambios" no se puede distinguir de "no redesplegué" ni de "quedó cacheado".
+  const sello = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const sitio = fs.readFileSync(path.join(RAIZ, 'web', 'index.html'), 'utf8')
+    .replace('title="Versión del sitio">dev<', 'title="Versión del sitio">' + sello + '<');
+
+  if (sitio.indexOf(sello) === -1) throw new Error('No se encontró el sello de versión en web/index.html');
+  fs.writeFileSync(path.join(DESTINO, 'index.html'), sitio, 'utf8');
 
   return {
     lineas: salida.split('\n').length,

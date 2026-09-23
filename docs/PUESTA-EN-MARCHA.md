@@ -156,6 +156,27 @@ Los dos modos conviven: la URL de Apps Script sigue andando como respaldo.
 
 ---
 
+## Actualizar el sitio después de un cambio
+
+Pegar el código y guardar **no** cambia lo que ves en la URL `/exec`: Apps
+Script sigue sirviendo la última versión publicada. Guardar es una cosa,
+publicar es otra.
+
+1. Pegá el código nuevo (`Codigo.gs`, `index.html`, o los dos) y guardá.
+2. `Implementar` > `Administrar implementaciones` > ✏️ (el lápiz).
+3. **Versión: Nueva** — no dejes la que está.
+4. `Implementar`.
+5. Abrí la URL y refrescá con **Ctrl+Shift+R** (Cmd+Shift+R en Mac). Desde el
+   celular, cerrá la pestaña y abrila de nuevo.
+
+**Cómo saber si estás viendo la versión nueva:** arriba a la izquierda, al
+lado de "Admisiones San Carlos", hay una etiqueta gris con la fecha y hora de
+compilación. Si no coincide con la del archivo que te pasé, todavía estás
+viendo la anterior.
+
+Si usás Vercel, el equivalente es subir el `index.html` nuevo y esperar a que
+el deploy termine; la etiqueta sirve igual.
+
 ## Funciones que podés correr cuando haga falta
 
 | Función | Cuándo |
@@ -183,3 +204,4 @@ cero.
 | `Faltan datos para completar el mail` | No es un error: la plantilla tiene un campo vacío y el sistema frena a propósito |
 | Una función aparece dos veces | Quedaron archivos viejos en el proyecto (paso 1) |
 | Un valor aparece en la columna de al lado | Versión anterior al arreglo de columnas: pegá el código nuevo y corré `repararColumnas` |
+| Pegaste el código nuevo y no cambia nada | Falta publicar una **versión nueva**, no sólo guardar (ver arriba) |
